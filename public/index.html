@@ -1,0 +1,606 @@
+<title>Seewärme St. Gilgen</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#16232b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Instrument+Serif&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-column phone app (max 520px) with a status hero, a "stay curve" plan, and a bottom tab bar; widens to two columns on desktop. */
+:root{
+  --bg:#eef1f2;          /* lake mist */
+  --surface:#ffffff;
+  --surface-2:#e3e8ea;
+  --ink:#16232b;         /* deep lake slate */
+  --ink-2:#55656e;
+  --line:#d3dadd;
+  --ember:#d9621f;       /* heating */
+  --ember-soft:#fbe6d8;
+  --glacier:#2f7fa6;     /* cold / lowered */
+  --glacier-soft:#dcecf4;
+  --ok:#2e8a5b; --warn:#b7791f; --bad:#c2412d;
+  --font-display:"Instrument Serif", Georgia, "Times New Roman", serif;
+  --font-body:"Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1519;--surface:#162127;--surface-2:#1e2c33;--ink:#e6eef1;--ink-2:#93a4ac;--line:#28383f;
+  --ember:#f08447;--ember-soft:#3a2418;--glacier:#6fb3d6;--glacier-soft:#16303d;--ok:#5cc08b;--warn:#e0a54a;--bad:#ec7663;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1519;--surface:#162127;--surface-2:#1e2c33;--ink:#e6eef1;--ink-2:#93a4ac;--line:#28383f;
+  --ember:#f08447;--ember-soft:#3a2418;--glacier:#6fb3d6;--glacier-soft:#16303d;--ok:#5cc08b;--warn:#e0a54a;--bad:#ec7663;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--font-body);font-size:15px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--glacier);outline-offset:2px}
+.app{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:18px;padding-top:14px}
+.demo{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border-radius:999px;padding:6px 12px;align-self:flex-start}
+.demo b{color:var(--ink);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--warn);flex:none}
+.dot.live{background:var(--ok)}
+header.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.place{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+h1{font-family:var(--font-display);font-weight:400;font-size:2.35rem;line-height:1.05;margin:4px 0 0;text-wrap:balance}
+h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);font-weight:600;margin:0}
+.sub{color:var(--ink-2);margin:6px 0 0;max-width:62ch}
+.view{display:flex;flex-direction:column;gap:18px}
+.view[hidden]{display:none!important}
+.card{background:var(--surface);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;border:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+.num{font-family:var(--font-data);font-variant-numeric:tabular-nums}
+.big{font-family:var(--font-display);font-size:3.4rem;line-height:1;letter-spacing:-.01em}
+.muted{color:var(--ink-2)}
+.small{font-size:13px}
+/* stay curve */
+.curve svg{width:100%;height:auto;display:block;overflow:visible}
+.curve text{font-family:var(--font-body);font-size:11px;fill:var(--ink-2)}
+.curve .lbl-strong{fill:var(--ink);font-weight:600}
+.legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px}
+.legend div{display:flex;flex-direction:column;min-width:0}
+.legend span{font-size:12px;color:var(--ink-2)}
+.legend b{font-weight:600;font-size:14px;font-variant-numeric:tabular-nums}
+/* people */
+.people{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.person{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:12px;background:var(--surface-2);text-align:center;min-width:0}
+.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--surface);border:2px solid var(--line)}
+.person.here .avatar{border-color:var(--ok)}
+.person.way .avatar{border-color:var(--warn)}
+.person b{font-size:14px}
+.person span{font-size:12px;color:var(--ink-2)}
+/* mode segmented */
+.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.mode{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 8px;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:0}
+.mode b{font-size:14px;font-weight:600}
+.mode span{font-size:11.5px;color:var(--ink-2);line-height:1.25}
+.mode[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.mode[aria-pressed="true"] span{color:inherit;opacity:.75}
+.quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.qa{border:0;border-radius:12px;padding:12px;text-align:left;background:var(--surface-2);display:flex;gap:10px;align-items:center;min-width:0}
+.qa svg{flex:none}
+.qa b{display:block;font-size:14px}
+.qa span{font-size:12px;color:var(--ink-2)}
+.qa.warm{background:var(--ember-soft)}
+.qa.cold{background:var(--glacier-soft)}
+/* rooms */
+.room{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center}
+.room + .room{border-top:1px solid var(--line);padding-top:14px}
+.room h3{margin:0;font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.chip{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.chip.heat{background:var(--ember-soft);color:var(--ember)}
+.chip.low{background:var(--glacier-soft);color:var(--glacier)}
+.chip.bad{background:var(--ember-soft);color:var(--bad)}
+.temp-now{font-family:var(--font-display);font-size:2.4rem;line-height:1}
+.stepper{display:flex;align-items:center;gap:4px;background:var(--surface-2);border-radius:999px;padding:3px}
+.stepper button{width:36px;height:36px;border-radius:50%;border:0;background:var(--surface);font-size:18px;font-weight:600}
+.stepper output{min-width:58px;text-align:center;font-family:var(--font-data);font-size:14px}
+.bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;grid-column:1/-1}
+.bar i{display:block;height:100%;background:var(--ember);border-radius:3px}
+.bar i.cool{background:var(--glacier)}
+.room details{grid-column:1/-1}
+.room summary{font-size:13px;color:var(--ink-2);cursor:pointer;list-style:none}
+.room summary::-webkit-details-marker{display:none}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;font-size:13.5px;margin-top:8px}
+.kv dt{color:var(--ink-2)}
+.kv dd{margin:0;text-align:right}
+/* forms */
+label.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--ink-2)}
+input[type="datetime-local"],select{font:inherit;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+.switch{position:relative;width:46px;height:28px;flex:none}
+.switch input{opacity:0;width:100%;height:100%;margin:0;position:absolute;cursor:pointer}
+.switch span{position:absolute;inset:0;border-radius:999px;background:var(--line);transition:background .2s}
+.switch span::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--surface);transition:transform .2s}
+.switch input:checked + span{background:var(--ok)}
+.switch input:checked + span::after{transform:translateX(18px)}
+.switch input:focus-visible + span{outline:2px solid var(--glacier);outline-offset:2px}
+.setting{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center}
+.setting + .setting{border-top:1px solid var(--line);padding-top:12px}
+.setting p{margin:0;font-size:12.5px;color:var(--ink-2);grid-column:1/2}
+.setting b{font-weight:600}
+input[type="range"]{grid-column:1/-1;width:100%;accent-color:var(--ember)}
+.primary{border:0;border-radius:12px;padding:12px 16px;background:var(--ink);color:var(--bg);font-weight:600}
+.ghost{border:1px solid var(--line);border-radius:12px;padding:11px 16px;background:transparent;font-weight:600}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+/* insights */
+.ebar{display:grid;grid-template-columns:88px minmax(0,1fr) auto;gap:10px;align-items:center;font-size:13.5px}
+.ebar .track{height:10px;border-radius:5px;background:var(--surface-2)}
+.ebar .fill{height:100%;border-radius:5px;background:var(--ember)}
+.ebar .v{text-align:right;font-family:var(--font-data);font-size:12.5px}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.stat{background:var(--surface-2);border-radius:12px;padding:12px;min-width:0}
+.stat span{font-size:12px;color:var(--ink-2);display:block}
+.stat b{font-family:var(--font-display);font-size:1.9rem;font-weight:400;line-height:1.1}
+.note{font-size:12.5px;color:var(--ink-2);margin:0}
+/* tabbar */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px max(16px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));z-index:5}
+nav.tabs .inner{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));width:100%;max-width:520px}
+nav.tabs button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--ink-2);padding:6px 0}
+nav.tabs button[aria-selected="true"]{color:var(--ember);font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:13.5px;z-index:6;max-width:calc(100% - 32px)}
+.confirm{background:var(--ember-soft);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.confirm p{margin:0}
+[hidden]{display:none!important}
+@media (min-width:960px){
+  .app{max-width:1040px}
+  #v-home{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start}
+  #v-home > .hero{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.pulse{animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+</style>
+
+<div class="app">
+  <div class="demo" id="conn"><span class="dot" id="conn-dot"></span><span id="conn-text"><b>Demo data</b> · connects to St. Gilgen Home Assistant once installed there</span></div>
+
+  <!-- HOME -->
+  <section class="view" id="v-home">
+    <div class="hero">
+      <header class="top">
+        <div>
+          <div class="place">St. Gilgen · Wolfgangsee</div>
+          <h1 id="headline">Warm and comfortable</h1>
+        </div>
+        <div style="text-align:right">
+          <div class="big num" id="flat-avg" style="font-family:var(--font-display)">20.4°</div>
+          <div class="small muted">flat average</div>
+        </div>
+      </header>
+      <p class="sub" id="subline"></p>
+    </div>
+
+    <div class="card curve">
+      <div class="row between"><h2>Stay plan</h2><span class="chip" id="stay-chip">Stay running</span></div>
+      <svg id="curve" viewBox="0 0 340 150" role="img" aria-label="Planned temperature over the stay"></svg>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="card">
+      <h2>Who is here</h2>
+      <div class="people" id="people"></div>
+    </div>
+
+    <div class="card">
+      <div class="row between"><h2>Heating mode</h2><span class="small muted" id="mode-note"></span></div>
+      <div class="modes" id="modes"></div>
+    </div>
+
+    <div class="card">
+      <h2>Quick actions</h2>
+      <div class="quick">
+        <button class="qa warm" data-qa="coming"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h13M12 6l6 6-6 6"/><path d="M21 4v16"/></svg><div><b>We're coming</b><span>Plan arrival</span></div></button>
+        <button class="qa cold" data-qa="leaving"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12H8M12 6l-6 6 6 6"/><path d="M3 4v16"/></svg><div><b>Leaving for good</b><span>Drop to 5 °C now</span></div></button>
+        <button class="qa" data-qa="out"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="13" cy="4" r="2"/><path d="M9 21l2-6 3 3v3M7 12l3-4 4 1 2 3"/></svg><div><b>Out for the day</b><span id="qa-out-sub">2 °C lower</span></div></button>
+        <button class="qa warm" data-qa="boost"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22c4 0 7-3 7-7 0-5-5-7-5-12-3 2-4 5-4 7-1-1-2-2-2-4-2 2-3 5-3 9 0 4 3 7 7 7z"/></svg><div><b>Boost</b><span id="qa-boost-sub">+2 °C for 2 h</span></div></button>
+      </div>
+      <div class="confirm" id="confirm" hidden></div>
+    </div>
+  </section>
+
+  <!-- ROOMS -->
+  <section class="view" id="v-rooms" hidden>
+    <div><div class="place">Rooms</div><h1>Room by room</h1><p class="sub">Change a room for now with − and +. To change what “comfortable” means for a room, open its details.</p></div>
+    <div class="card" id="rooms"></div>
+  </section>
+
+  <!-- STAYS -->
+  <section class="view" id="v-stay" hidden>
+    <div><div class="place">Stay planner</div><h1>Arrive warm, leave it cold</h1><p class="sub">Enter when you arrive and leave. Heating starts by itself early enough, using the warm-up speed the flat has learned. While you are here, going out only lowers each room a little. From departure the flat holds 5 °C.</p></div>
+    <div class="card">
+      <div class="row between"><b>Stay planned</b><label class="switch"><input type="checkbox" id="st-on" aria-label="Stay planned"><span></span></label></div>
+      <label class="field" for="st-arr">Arrival<input type="datetime-local" id="st-arr"></label>
+      <label class="field" for="st-dep">Departure<input type="datetime-local" id="st-dep"></label>
+      <p class="note" id="st-check"></p>
+      <div class="btns"><button class="primary" id="st-save">Save stay</button><button class="ghost" id="st-cancel">Cancel stay</button></div>
+    </div>
+    <div class="card">
+      <h2>What will happen</h2>
+      <dl class="kv" id="st-timeline" style="margin:0"></dl>
+    </div>
+    <div class="card">
+      <div class="row between"><h2>Later stays</h2><span class="chip">Next step</span></div>
+      <p class="note">Right now one stay can be planned at a time. Next, I'll add a stay calendar in Home Assistant, so you can enter Christmas, Easter and the summer in one go and the flat follows them.</p>
+    </div>
+  </section>
+
+  <!-- INSIGHTS -->
+  <section class="view" id="v-insights" hidden>
+    <div><div class="place">Insights</div><h1>How the flat heats</h1></div>
+    <div class="stats">
+      <div class="stat"><span>Warm-up speed (learned)</span><b class="num" id="in-rate">0.5 °C/h</b></div>
+      <div class="stat"><span>Full warm-up from 5 °C</span><b class="num" id="in-full">≈ 31 h</b></div>
+      <div class="stat"><span id="in-kwh-l">Electricity, 30 days</span><b class="num" id="in-kwh">–</b></div>
+      <div class="stat"><span id="in-eur-l">Electricity cost, 30 days</span><b class="num" id="in-eur">–</b></div>
+    </div>
+    <div class="card">
+      <div class="row between"><h2>Electricity cost per day</h2><span class="small muted" id="cost-sub">whole flat</span></div>
+      <svg id="cost-chart" viewBox="0 0 340 130" role="img" aria-label="Electricity cost per day, last 30 days" style="width:100%;height:auto;display:block;overflow:visible"></svg>
+      <p class="note" id="cost-note"></p>
+    </div>
+    <div class="card">
+      <div class="row between"><h2>Heating by room · 30 days</h2><span class="small muted" id="in-price">at € 0.30/kWh</span></div>
+      <div id="ebars" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+    <div class="card">
+      <h2>Heating curve</h2>
+      <p class="note" id="in-curve"></p>
+    </div>
+    <div class="card">
+      <h2>Thermostat health</h2>
+      <dl class="kv" id="health" style="margin:0"></dl>
+      <p class="note" id="health-note"></p>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="v-settings" hidden>
+    <div><div class="place">Settings</div><h1>House rules</h1><p class="sub">These apply to Auto and to the quick actions. Changes take effect straight away.</p></div>
+    <div class="card" id="settings"></div>
+    <div class="card">
+      <h2>Comfort temperature per room</h2>
+      <div id="comfort"></div>
+    </div>
+    <div class="card">
+      <h2>Thermostat features</h2>
+      <div class="setting"><div><b>Open-window detection</b><p>Each thermostat stops heating when it sees the temperature fall fast, e.g. while you air a room.</p></div><label class="switch"><input type="checkbox" id="set-window" aria-label="Open-window detection"><span></span></label></div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast" hidden role="status"></div>
+
+<nav class="tabs" aria-label="Sections"><div class="inner" role="tablist">
+  <button role="tab" data-tab="home" aria-selected="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+  <button role="tab" data-tab="rooms" aria-selected="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h9V3M12 12v9"/></svg>Rooms</button>
+  <button role="tab" data-tab="stay" aria-selected="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Stays</button>
+  <button role="tab" data-tab="insights" aria-selected="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Insights</button>
+  <button role="tab" data-tab="settings" aria-selected="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Settings</button>
+</div></nav>
+
+<script>
+/* ---------- Home Assistant entity map (St. Gilgen) ---------- */
+const ROOMS=[["living_room","Living room"],["kitchen","Kitchen"],["hall","Hall"],["bathroom","Bathroom"],["bedroom","Bedroom"]];
+const E={
+  mode:"input_select.stg_heating_mode", auto:"input_text.stg_heating_auto_state",
+  arr:"input_datetime.stg_arrival", dep:"input_datetime.stg_departure", planned:"input_boolean.stg_arrival_planned",
+  stay:"binary_sensor.stg_stay_active", start:"sensor.stg_heating_start", stop:"sensor.stg_heating_stop",
+  gap:"sensor.stg_heating_gap", preheat:"sensor.stg_pre_heat_time", rate:"input_number.stg_warm_up_rate", last:"input_text.stg_last_warm_up",
+  away:"input_number.stg_away_temperature", drop:"input_number.stg_out_for_the_day_drop", boostInc:"input_number.stg_boost_increase",
+  boostDur:"input_number.stg_boost_duration", margin:"input_number.stg_pre_heat_safety_margin", stopBefore:"input_number.stg_stop_heating_before_departure",
+  boostTimer:"timer.stg_heating_boost", zone:"zone.home",
+  people:[["person.mike","Mike"],["person.irene","Irene"],["person.oli","Oli"]],
+  climate:r=>`climate.${r}_floor_heating`, comfort:r=>`number.${r}_floor_heating_comfort_temperature`,
+  online:r=>`binary_sensor.${r}_floor_heating_online`, wifi:r=>`sensor.${r}_floor_heating_wifi_signal`,
+  floor:r=>`sensor.${r}_floor_temperature`, energy:r=>`sensor.${r}_floor_heating_energy_30_days`,
+};
+const MODES=[
+  ["Auto","Auto","Follows plan and who's here"],["Home","Home","Comfort, ignore presence"],["Eco","Out","Each room a bit lower"],
+  ["Away","Away","Hold 5 °C"],["Frost protection","Frost only","Thermostats paused"],["Boost","Boost","Warmer for a while"]];
+
+/* ---------- Demo state (shape = HA state objects) ---------- */
+const H=3600e3, now0=Date.now();
+function at(dayOffset,h,m=0){const d=new Date();d.setDate(d.getDate()+dayOffset);d.setHours(h,m,0,0);return d}
+function haDT(d){const p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:00`}
+const demo={};
+function S(id,state,attributes={}){demo[id]={entity_id:id,state:String(state),attributes}}
+(function seed(){
+  const arr=at(-1,18), dep=at(6,12);
+  S(E.mode,"Auto");S(E.auto,"Home");S(E.arr,haDT(arr));S(E.dep,haDT(dep));S(E.planned,"on");S(E.stay,"on");
+  S(E.start,new Date(arr-3*H).toISOString());S(E.stop,new Date(dep-1*H).toISOString());
+  S(E.gap,"0.3");S(E.preheat,"1.6");S(E.rate,"0.55");S(E.last,`${arr.toLocaleDateString("de-AT",{day:"2-digit",month:"2-digit"})}. 15:00: +4.1 °C in 7.4 h = 0.55 °C/h → rate now 0.55 °C/h`);
+  S(E.away,"5");S(E.drop,"2");S(E.boostInc,"2");S(E.boostDur,"2");S(E.margin,"1");S(E.stopBefore,"1");S(E.boostTimer,"idle");S(E.zone,"2");
+  S("person.mike","home");S("person.irene","home");S("person.oli","not_home");
+  const d={living_room:[21.8,22,22,24.6,-58,84],kitchen:[20.2,20,20,23.1,-61,41],hall:[19.1,20,20,22.8,-55,38],bathroom:[20.4,20,20,25.2,-63,52],bedroom:[18.6,19,19,22.0,-73,61]};
+  for(const [r] of ROOMS){const [cur,tgt,cf,fl,wf,kwh]=d[r];
+    S(E.climate(r),"heat",{current_temperature:cur,temperature:tgt,preset_mode:"MANUAL",hvac_action:cur<tgt-0.2?"heating":"idle"});
+    S(E.comfort(r),cf);S(E.online(r),"on");S(E.wifi(r),wf);S(E.floor(r),fl);S(E.energy(r),kwh);S(`demo.window.${r}`,"on",{friendly_name:"demo"});}
+})();
+
+/* ---------- Data layer: demo or live Home Assistant ---------- */
+let states=demo, live=false, haUp=false, costData=null;
+const st=id=>states[id]?.state, at_=(id,a)=>states[id]?.attributes?.[a], num=(id,f=0)=>{const v=parseFloat(st(id));return isNaN(v)?f:v};
+async function call(domain,service,data){
+  if(live){
+    const r=await fetch("api/call",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({domain,service,data})});
+    if(!r.ok){const e=await r.json().catch(()=>({}));toast(e.error||"That didn't work, please try again");throw new Error(e.error)}
+    return;
+  }
+  // demo: mimic what the HA automations do
+  const id=data.entity_id;
+  if(domain==="input_select"){S(id,data.option);applyModeDemo(data.option)}
+  else if(domain==="input_number"||domain==="number"){S(id,data.value,demo[id]?.attributes);if(id.startsWith("number.")){const r=id.split(".")[1].replace("_floor_heating_comfort_temperature","");if(st(E.mode)!=="Eco")setTarget(r,data.value)}}
+  else if(domain==="climate"){setTarget(id.split(".")[1].replace("_floor_heating",""),data.temperature)}
+  else if(domain==="input_datetime"){S(id,data.datetime);recomputeDemo()}
+  else if(domain==="input_boolean"){S(id,service==="turn_on"?"on":"off");recomputeDemo()}
+  render();
+}
+function setTarget(r,t){const c=demo[E.climate(r)];c.attributes={...c.attributes,temperature:t,hvac_action:c.attributes.current_temperature<t-0.2?"heating":"idle"}}
+function applyModeDemo(m){
+  const drop=num(E.drop,2), away=num(E.away,5);
+  for(const [r] of ROOMS){const cf=num(E.comfort(r),20);
+    const t= m==="Eco"?cf-drop : m==="Away"?away : m==="Frost protection"?5 : m==="Boost"?cf+num(E.boostInc,2) : cf;
+    setTarget(r,t); demo[E.climate(r)].attributes.preset_mode = m==="Eco"||m==="Away"?"VACATION":m==="Frost protection"?"PAUSE":"MANUAL";}
+  if(m==="Auto")S(E.auto,"Home");
+  S(E.boostTimer,m==="Boost"?"active":"idle",m==="Boost"?{finishes_at:new Date(Date.now()+num(E.boostDur,2)*H).toISOString()}:{});
+}
+function recomputeDemo(){
+  const a=parseHA(st(E.arr)), d=parseHA(st(E.dep));
+  S(E.start,new Date(a-num(E.preheat,3)*H).toISOString());S(E.stop,new Date(d-num(E.stopBefore,1)*H).toISOString());
+  const on=st(E.planned)==="on"&&Date.now()>=a-num(E.preheat,3)*H&&Date.now()<d-num(E.stopBefore,1)*H;S(E.stay,on?"on":"off");
+}
+function parseHA(s){return s?new Date(s.replace(" ","T")):null}
+async function tryLive(){
+  // Live when served by the NAS app (it holds the Home Assistant key); otherwise demo data.
+  const h=await fetch("api/health",{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null);
+  if(!h||!h.ok)return;
+  let queued=false; const soon=()=>{if(!queued){queued=true;requestAnimationFrame(()=>{queued=false;render()})}};
+  const es=new EventSource("api/events");
+  es.addEventListener("snapshot",e=>{const d=JSON.parse(e.data);states={...d.states};haUp=d.connected;live=true;soon()});
+  es.addEventListener("state",e=>{const s=JSON.parse(e.data);states[s.entity_id]=s;soon()});
+  es.addEventListener("removed",e=>{delete states[JSON.parse(e.data).entity_id];soon()});
+  es.addEventListener("status",e=>{haUp=JSON.parse(e.data).connected;soon()});
+  es.onerror=()=>{haUp=false;soon()};
+  const loadCosts=()=>fetch("api/costs").then(r=>r.ok?r.json():null).then(d=>{if(d){costData=d;renderInsights();renderSettings()}}).catch(()=>{});
+  loadCosts(); setInterval(loadCosts,15*60e3);
+}
+
+/* ---------- Helpers ---------- */
+const $=s=>document.querySelector(s);
+const fmt=d=>d?d.toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"–";
+const fmtT=d=>d?d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"–";
+const deg=v=>`${(+v).toFixed(1)} °C`;
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
+function toLocalInput(d){if(!d)return"";const p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`}
+function roomTemps(){return ROOMS.map(([r,n])=>({r,n,cur:at_(E.climate(r),"current_temperature"),tgt:at_(E.climate(r),"temperature"),act:at_(E.climate(r),"hvac_action"),preset:at_(E.climate(r),"preset_mode")}))}
+
+/* ---------- Render ---------- */
+function render(){
+  $("#conn-dot").classList.toggle("live",live&&haUp);
+  $("#conn-text").innerHTML=!live?"<b>Demo data</b> · connects to St. Gilgen Home Assistant once installed on the NAS":haUp?"<b>Live</b> · St. Gilgen":"<b>Reconnecting</b> · St. Gilgen Home Assistant can't be reached right now";
+  renderHome();renderRooms();renderStay();renderInsights();renderSettings();
+}
+function situation(){
+  const m=st(E.mode), a=st(E.auto), drop=num(E.drop,2), away=num(E.away,5);
+  const heating=roomTemps().filter(x=>x.act==="heating").map(x=>x.n.toLowerCase());
+  const hs=heating.length?`Heating now: ${heating.join(", ")}.`:"All rooms at temperature.";
+  if(m==="Auto"){
+    if(a==="Pre-heating"){return ["Warming up for your arrival",`Started at ${fmtT(new Date(st(E.start)))} so the flat is comfortable by ${fmtT(parseHA(st(E.arr)))}. ${hs}`]}
+    if(a&&a.startsWith("Home"))return ["Warm and comfortable",`Someone is here, so every room is at its comfort temperature. ${hs}`];
+    if(a==="Out for the day")return ["Out for now, kept cosy",`Everyone is out. Each room is ${drop} °C lower and warms back up when the first of you is home.`];
+    return [`Resting at ${away} °C`,`No stay running. The flat holds ${away} °C and starts warming up by itself before your next arrival.`];
+  }
+  if(m==="Home")return ["Comfort, fixed","All rooms at comfort until you pick Auto again. "+hs];
+  if(m==="Eco")return ["Out for the day",`Each room ${drop} °C lower until you change it.`];
+  if(m==="Away")return [`Holding ${away} °C`,"Stays like this until you change it or a planned stay starts."];
+  if(m==="Frost protection")return ["Frost protection only","Thermostats are paused and only stop the floors from freezing."];
+  if(m==="Boost"){const f=at_(E.boostTimer,"finishes_at");return [`Boosting +${num(E.boostInc,2)} °C`,`Until ${f?fmtT(new Date(f)):"…"}, then back to the previous mode.`]}
+  return [m||"…",""];
+}
+function renderHome(){
+  const [h,s]=situation(); $("#headline").textContent=h; $("#subline").textContent=s;
+  const rt=roomTemps().filter(x=>typeof x.cur==="number"); const avg=rt.reduce((a,x)=>a+x.cur,0)/(rt.length||1);
+  $("#flat-avg").textContent=`${avg.toFixed(1)}°`;
+  // people
+  const zoneNear=id=>st(id)==="near_st_gilgen"||st(id)==="Near St. Gilgen";
+  $("#people").innerHTML=E.people.map(([id,n])=>{const here=st(id)==="home",way=zoneNear(id);
+    const pic=at_(id,"entity_picture");
+    return `<div class="person ${here?"here":way?"way":""}"><div class="avatar" ${pic?`style="background:center/cover url('${pic}')"`:""}>${pic?"":n[0]}</div><b>${n}</b><span>${here?"In the flat":way?"On the way":st(id)==="unknown"||!st(id)?"Not tracked yet":"Away"}</span></div>`}).join("");
+  // modes
+  const m=st(E.mode);
+  $("#modes").innerHTML=MODES.map(([v,l,d])=>`<button class="mode" data-mode="${v}" aria-pressed="${m===v}"><b>${l}</b><span>${d}</span></button>`).join("");
+  $("#mode-note").textContent=m==="Auto"?"Recommended":"Manual – Auto is off";
+  $("#qa-out-sub").textContent=`${num(E.drop,2)} °C lower`;
+  $("#qa-boost-sub").textContent=`+${num(E.boostInc,2)} °C for ${num(E.boostDur,2)} h`;
+  renderCurve();
+}
+function renderCurve(){
+  const planned=st(E.planned)==="on", stayOn=st(E.stay)==="on";
+  const arr=parseHA(st(E.arr)), dep=parseHA(st(E.dep)), start=new Date(st(E.start)), stop=new Date(st(E.stop));
+  const away=num(E.away,5), comfort=ROOMS.reduce((a,[r])=>a+num(E.comfort(r),20),0)/ROOMS.length, drop=num(E.drop,2);
+  const chip=$("#stay-chip");
+  chip.textContent=!planned?"No stay planned":stayOn?(Date.now()<arr?"Pre-heating":"Stay running"):"Planned";
+  chip.className="chip "+(stayOn?"heat":planned?"":"low");
+  // Schematic, phase-based x axis (not to time scale): before | warm-up | stay | after
+  const W=340,top=18,bot=112,X=[0,54,118,282,340];
+  const y=t=>bot-(t-4)/(24-4)*(bot-top);
+  const yA=y(away),yC=y(comfort),yO=y(comfort-drop);
+  const path=`M${X[0]} ${yA} L${X[1]} ${yA} C${X[1]+30} ${yA} ${X[2]-26} ${yC} ${X[2]} ${yC} L${X[2]+46} ${yC} L${X[2]+52} ${yO} L${X[2]+78} ${yO} L${X[2]+84} ${yC} L${X[3]-24} ${yC} L${X[3]-18} ${yC} C${X[3]+4} ${yC} ${X[3]+18} ${yA} ${X[4]} ${yA}`;
+  // now position
+  let nx=null; const t=Date.now();
+  if(planned){
+    const seg=(a,b,x0,x1)=>x0+(x1-x0)*Math.min(1,Math.max(0,(t-a)/(b-a)));
+    nx= t<start? X[1]-6 : t<arr? seg(+start,+arr,X[1],X[2]) : t<stop? seg(+arr,+stop,X[2],X[3]-18) : X[3]+20;
+  }
+  const svg=$("#curve");
+  svg.innerHTML=`
+   <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--ember)" stop-opacity=".28"/><stop offset="1" stop-color="var(--ember)" stop-opacity="0"/></linearGradient></defs>
+   <line x1="0" x2="${W}" y1="${yA}" y2="${yA}" stroke="var(--glacier)" stroke-dasharray="2 4" stroke-width="1"/>
+   <text x="${W}" y="${yA-5}" text-anchor="end">${away} °C</text>
+   <text x="2" y="${yC-6}">${comfort.toFixed(0)} °C</text>
+   <path d="${path} L${W} ${bot} L0 ${bot} Z" fill="url(#g)"/>
+   <path d="${path}" fill="none" stroke="var(--ember)" stroke-width="2.4" stroke-linejoin="round"/>
+   <text x="${X[2]+65}" y="${yO+16}" text-anchor="middle">out: −${drop}°</text>
+   ${[X[1],X[2],X[3]].map(x=>`<line x1="${x}" x2="${x}" y1="${bot}" y2="${bot+6}" stroke="var(--line)"/>`).join("")}
+   <line x1="0" x2="${W}" y1="${bot}" y2="${bot}" stroke="var(--line)"/>
+   <text x="${X[1]}" y="${bot+20}" text-anchor="middle">heat on</text>
+   <text x="${X[2]}" y="${bot+20}" text-anchor="middle" class="lbl-strong">arrive</text>
+   <text x="${X[3]-6}" y="${bot+20}" text-anchor="middle" class="lbl-strong">leave</text>
+   <text x="${X[1]}" y="${bot+34}" text-anchor="middle">${planned?fmtT(start):""}</text>
+   <text x="${X[2]}" y="${bot+34}" text-anchor="middle">${planned?arr.toLocaleDateString("en-GB",{day:"numeric",month:"short"}):""}</text>
+   <text x="${X[3]-6}" y="${bot+34}" text-anchor="middle">${planned?dep.toLocaleDateString("en-GB",{day:"numeric",month:"short"}):""}</text>
+   ${nx!==null?`<line x1="${nx}" x2="${nx}" y1="${top-8}" y2="${bot}" stroke="var(--ink)" stroke-width="1.4"/><circle cx="${nx}" cy="${top-8}" r="4" fill="var(--ink)"/><text x="${Math.min(W-14,Math.max(14,nx))}" y="${top-16}" text-anchor="middle" class="lbl-strong">now</text>`:""}`;
+  svg.setAttribute("viewBox",`0 -14 ${W} 166`);
+  $("#legend").innerHTML=planned?`
+   <div><span>Heating starts</span><b>${fmt(start)}</b></div>
+   <div><span>Arrival</span><b>${fmt(arr)}</b></div>
+   <div><span>Lowered to ${away} °C</span><b>${fmt(stop)}</b></div>
+   <div><span>Departure</span><b>${fmt(dep)}</b></div>`:`<div style="grid-column:1/-1"><span>Plan your next stay in Stays. Until then the flat rests at ${away} °C.</span></div>`;
+}
+function renderRooms(){
+  $("#rooms").innerHTML=roomTemps().map(x=>{
+    const cf=num(E.comfort(x.r),20), lowered=x.tgt<cf-0.4, online=st(E.online(x.r))!=="off", wifi=num(E.wifi(x.r),0);
+    const pct=Math.max(4,Math.min(100,((x.cur-5)/(x.tgt-5||1))*100));
+    const chip=!online?`<span class="chip bad">Offline</span>`:x.act==="heating"?`<span class="chip heat pulse">Heating</span>`:lowered?`<span class="chip low">Lowered</span>`:`<span class="chip">At temperature</span>`;
+    return `<div class="room">
+      <div><h3>${x.n} ${chip}</h3><div class="small muted">Floor ${deg(num(E.floor(x.r)))} · comfort ${deg(cf)}</div></div>
+      <div class="temp-now num" style="font-family:var(--font-display)">${(+x.cur).toFixed(1)}°</div>
+      <div class="bar"><i class="${lowered?"cool":""}" style="width:${pct}%"></i></div>
+      <div class="small muted">Set to</div>
+      <div class="stepper"><button aria-label="${x.n} cooler" data-step="-0.5" data-room="${x.r}">−</button><output class="num">${(+x.tgt).toFixed(1)}°</output><button aria-label="${x.n} warmer" data-step="0.5" data-room="${x.r}">+</button></div>
+      <details><summary>Details</summary><dl class="kv">
+        <dt>Thermostat mode</dt><dd>${{MANUAL:"Manual",VACATION:"Lowered",PAUSE:"Paused",SCHEDULE:"Schedule",OVERRIDE:"Override"}[x.preset]||x.preset}</dd>
+        <dt>Wi-Fi signal</dt><dd class="num" style="color:${wifi<-70?"var(--warn)":"inherit"}">${wifi} dBm${wifi<-70?" · weak":""}</dd>
+        <dt>Energy, 30 days</dt><dd class="num">${num(E.energy(x.r))} kWh</dd>
+      </dl></details></div>`}).join("");
+}
+function renderStay(){
+  if(document.activeElement?.closest?.("#v-stay"))return; // don't overwrite while typing
+  $("#st-on").checked=st(E.planned)==="on";
+  $("#st-arr").value=toLocalInput(parseHA(st(E.arr)));
+  $("#st-dep").value=toLocalInput(parseHA(st(E.dep)));
+  stayPreview();
+}
+function stayPreview(){
+  const a=new Date($("#st-arr").value), d=new Date($("#st-dep").value), ph=num(E.preheat,3), sb=num(E.stopBefore,1);
+  const bad=!(a<d); $("#st-check").textContent=bad?"Departure must be after arrival.":`${Math.round((d-a)/864e5*10)/10} days in the flat.`;
+  $("#st-check").style.color=bad?"var(--bad)":"";
+  $("#st-timeline").innerHTML=bad?"":`
+    <dt>Heating starts</dt><dd class="num">${fmt(new Date(a-ph*H))}</dd>
+    <dt>Comfortable by arrival</dt><dd class="num">${fmt(a)}</dd>
+    <dt>While you're out</dt><dd>each room −${num(E.drop,2)} °C</dd>
+    <dt>Lowered to ${num(E.away,5)} °C</dt><dd class="num">${fmt(new Date(d-sb*H))}</dd>
+    <dt>Departure</dt><dd class="num">${fmt(d)}</dd>`;
+}
+function renderInsights(){
+  const rate=num(E.rate,0.5), margin=num(E.margin,1), away=num(E.away,5);
+  const comfort=ROOMS.reduce((a,[r])=>a+num(E.comfort(r),20),0)/ROOMS.length;
+  $("#in-rate").textContent=`${rate.toFixed(2)} °C/h`;
+  $("#in-full").textContent=`≈ ${Math.round((comfort-away)/rate+margin)} h`;
+  const price=currentPrice();
+  const kwh=ROOMS.map(([r,n])=>[n,num(E.energy(r))]); const max=Math.max(...kwh.map(x=>x[1]),1);
+  $("#in-price").textContent=`at € ${price.toFixed(4).replace(/0+$/,"")}/kWh`;
+  renderCosts(price);
+  $("#ebars").innerHTML=kwh.map(([n,v])=>`<div class="ebar"><span>${n}</span><div class="track"><div class="fill" style="width:${v/max*100}%"></div></div><span class="v">${Math.round(v)} kWh · €${Math.round(v*price)}</span></div>`).join("");
+  const last=st(E.last);
+  $("#in-curve").textContent=`The flat currently warms up by about ${rate.toFixed(2)} °C per hour. Every warm-up from a lowered temperature is measured and blended into this value, and the planner starts heating that much earlier, plus ${margin} h margin. Last measurement: ${last&&last!=="unknown"?last:"none yet"}.`;
+  $("#health").innerHTML=ROOMS.map(([r,n])=>{const on=st(E.online(r))!=="off",w=num(E.wifi(r));return `<dt>${n}</dt><dd style="color:${!on?"var(--bad)":w<-70?"var(--warn)":"var(--ok)"}">${on?"Online":"Offline"} · <span class="num">${w} dBm</span></dd>`}).join("");
+  const weak=ROOMS.filter(([r])=>num(E.wifi(r))<-70).map(x=>x[1]);
+  $("#health-note").textContent=weak.length?`${weak.join(", ")}: weak Wi-Fi. A second eero near it would stop the dropouts.`:"All thermostats have good Wi-Fi.";
+}
+function currentPrice(){
+  if(live){const p=costData?.price?.eur_per_kwh??parseFloat(st("sensor.st_gilgen_electricity_price"));return isNaN(p)?0:p}
+  return parseFloat(localGet("price")||"0.4176");
+}
+function demoDays(){ // example data for the demo only
+  const out=[],t=new Date();t.setHours(0,0,0,0);
+  for(let i=30;i>=1;i--){const d=new Date(t-i*864e5),home=i<=2||(i>=12&&i<=16),kwh=home?52+(i%3)*4:1.4+(i%4)*.1;out.push({start:+d,kwh,eur:kwh*.4176})}
+  return out;
+}
+function renderCosts(price){
+  const days=live?(costData?.days||[]):demoDays();
+  const kwh=days.reduce((a,d)=>a+(d.kwh||0),0), eur=days.reduce((a,d)=>a+(d.eur||0),0);
+  $("#in-kwh").textContent=days.length?`${Math.round(kwh)} kWh`:"–";
+  $("#in-eur").textContent=days.length?`€ ${Math.round(eur)}`:"–";
+  const svg=$("#cost-chart"); if(!days.length){svg.innerHTML=`<text x="0" y="60" style="font-size:12px;fill:var(--ink-2)">Waiting for the smart meter data…</text>`;$("#cost-note").textContent="";return}
+  const W=340,top=10,bot=104,max=Math.max(...days.map(d=>d.eur||0),1),bw=W/days.length;
+  const nice=max>40?20:max>20?10:max>8?5:2, ticks=[];for(let v=nice;v<=max;v+=nice)ticks.push(v);
+  const y=v=>bot-v/max*(bot-top);
+  svg.innerHTML=ticks.map(v=>`<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="0" y="${y(v)-3}" style="font-size:10px;fill:var(--ink-2)">€${v}</text>`).join("")+
+    days.map((d,i)=>{const v=d.eur||0,h=Math.max(1,bot-y(v));return `<rect x="${i*bw+1}" y="${bot-h}" width="${Math.max(1,bw-2)}" height="${h}" rx="1.5" fill="${v>max*.25?"var(--ember)":"var(--glacier)"}"><title>${new Date(d.start).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}: € ${v.toFixed(2)} · ${(d.kwh||0).toFixed(1)} kWh</title></rect>`}).join("")+
+    `<line x1="0" x2="${W}" y1="${bot}" y2="${bot}" stroke="var(--line)"/>`+
+    [0,Math.floor(days.length/2),days.length-1].map(i=>`<text x="${Math.min(W-2,Math.max(2,i*bw+bw/2))}" y="${bot+16}" text-anchor="${i===0?"start":i===days.length-1?"end":"middle"}" style="font-size:10.5px;fill:var(--ink-2)">${new Date(days[i].start).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</text>`).join("");
+  const p=live?costData?.price:null;
+  $("#cost-note").textContent=(live?"":"Example data. ")+`Orange days are days with the heating on. The meter data arrives a day late.`+(p?` Price € ${p.eur_per_kwh}/kWh all-in from ${p.supplier||"your supplier"}, valid since ${p.valid_from?new Date(p.valid_from).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):"–"} (from your income and expense app).`:"");
+}
+function localGet(k){try{return localStorage.getItem("stg."+k)}catch(e){return null}}
+function localSet(k,v){try{localStorage.setItem("stg."+k,v)}catch(e){}}
+const SETTINGS=[
+  [E.away,"Away temperature","Between stays and after departure. 5 °C keeps the floors safe.",5,12,0.5,"°C"],
+  [E.drop,"Out for the day","How much each room drops while everyone is out during a stay.",0.5,6,0.5,"°C"],
+  [E.boostInc,"Boost: warmer by","For a quick warm-up after skiing or a swim.",1,5,0.5,"°C"],
+  [E.boostDur,"Boost: duration","After this, back to the previous mode.",0.5,6,0.5,"h"],
+  [E.margin,"Extra pre-heat time","Added on top of the learned warm-up time, to be safe.",0,6,0.5,"h"],
+  [E.stopBefore,"Stop heating before departure","Floors stay warm for hours, so you won't notice.",0,6,0.5,"h"],
+  ["local.price","Electricity price","Used for the cost figures in Insights.",0.10,0.60,0.01,"€/kWh"]];
+function windowSwitches(){return live?Object.values(states).filter(s=>s.entity_id.startsWith("switch.")&&/ Floor Heating Switch Window detection$/.test(s.attributes?.friendly_name||"")):ROOMS.map(([r])=>states[`demo.window.${r}`]).filter(Boolean)}
+function renderSettings(){
+  if(document.activeElement?.closest?.("#settings,#comfort"))return;
+  $("#settings").innerHTML=SETTINGS.map(([id,l,d,mi,ma,s,u],i)=>{
+    if(id==="local.price"&&live){const p=currentPrice();return `<div class="setting"><div><b>Electricity price</b><p>Comes from your income and expense app and updates by itself.</p></div><output class="num">${p?p.toFixed(4):"–"} €/kWh</output></div>`}
+    const v=id==="local.price"?currentPrice():num(id);
+    return `<div class="setting"><div><b>${l}</b><p>${d}</p></div><output class="num" id="o${i}">${u==="€/kWh"?v.toFixed(2):v} ${u}</output><input type="range" id="s${i}" aria-label="${l}" min="${mi}" max="${ma}" step="${s}" value="${v}" data-set="${i}"></div>`}).join("");
+  $("#comfort").innerHTML=ROOMS.map(([r,n])=>`<div class="setting"><div><b>${n}</b></div><div class="stepper"><button aria-label="${n} comfort cooler" data-comfort="-0.5" data-room="${r}">−</button><output class="num">${num(E.comfort(r)).toFixed(1)}°</output><button aria-label="${n} comfort warmer" data-comfort="0.5" data-room="${r}">+</button></div></div>`).join("");
+  const ws=windowSwitches(); $("#set-window").checked=ws.length?ws.every(s=>s.state==="on"):true;
+}
+
+/* ---------- Interaction ---------- */
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("button"); if(!b)return;
+  if(b.dataset.tab){document.querySelectorAll("nav.tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
+    document.querySelectorAll(".view").forEach(v=>v.hidden=v.id!=="v-"+b.dataset.tab);window.scrollTo(0,0);localSet("tab",b.dataset.tab);return}
+  if(b.dataset.mode){await call("input_select","select_option",{entity_id:E.mode,option:b.dataset.mode});toast(`Mode: ${MODES.find(m=>m[0]===b.dataset.mode)[1]}`);return}
+  if(b.dataset.step){const r=b.dataset.room,t=Math.min(28,Math.max(5,(at_(E.climate(r),"temperature")||20)+parseFloat(b.dataset.step)));
+    await call("climate","set_temperature",{entity_id:E.climate(r),temperature:t});toast(`${ROOMS.find(x=>x[0]===r)[1]} set to ${t.toFixed(1)} °C`);return}
+  if(b.dataset.comfort){const r=b.dataset.room,v=Math.min(28,Math.max(10,num(E.comfort(r),20)+parseFloat(b.dataset.comfort)));
+    await call("number","set_value",{entity_id:E.comfort(r),value:v});renderSettings();toast(`${ROOMS.find(x=>x[0]===r)[1]} comfort: ${v.toFixed(1)} °C`);return}
+  if(b.dataset.qa){quick(b.dataset.qa);return}
+  if(b.dataset.confirm==="no"){$("#confirm").hidden=true;return}
+  if(b.dataset.confirm==="leave"){$("#confirm").hidden=true;
+    await call("input_datetime","set_datetime",{entity_id:E.dep,datetime:haDT(new Date())});
+    await call("input_select","select_option",{entity_id:E.mode,option:"Away"});toast(`Flat lowered to ${num(E.away,5)} °C`);return}
+  if(b.id==="st-save"){const a=new Date($("#st-arr").value),d=new Date($("#st-dep").value);if(!(a<d)){toast("Departure must be after arrival");return}
+    await call("input_datetime","set_datetime",{entity_id:E.arr,datetime:haDT(a)});await call("input_datetime","set_datetime",{entity_id:E.dep,datetime:haDT(d)});
+    await call("input_boolean","turn_on",{entity_id:E.planned});b.blur();renderStay();toast("Stay saved");return}
+  if(b.id==="st-cancel"){await call("input_boolean","turn_off",{entity_id:E.planned});b.blur();renderStay();toast("Stay cancelled");return}
+});
+function quick(k){
+  const c=$("#confirm");
+  if(k==="coming"){document.querySelector('[data-tab="stay"]').click();if(st(E.planned)!=="on"){const a=new Date(Date.now()+24*H);a.setMinutes(0);$("#st-arr").value=toLocalInput(a);$("#st-dep").value=toLocalInput(new Date(+a+7*864e5));stayPreview()}$("#st-arr").focus();return}
+  if(k==="leaving"){c.innerHTML=`<p><b>Leaving for good?</b> The stay ends now and every room goes down to ${num(E.away,5)} °C until the next planned stay.</p><div class="btns"><button class="primary" data-confirm="leave">Yes, lower the flat</button><button class="ghost" data-confirm="no">Not yet</button></div>`;c.hidden=false;return}
+  if(k==="out"){call("input_select","select_option",{entity_id:E.mode,option:"Eco"});toast(`Each room ${num(E.drop,2)} °C lower`);return}
+  if(k==="boost"){call("input_select","select_option",{entity_id:E.mode,option:"Boost"});toast(`Boost +${num(E.boostInc,2)} °C for ${num(E.boostDur,2)} h`);return}
+}
+document.addEventListener("input",e=>{
+  const el=e.target;
+  if(el.id==="st-arr"||el.id==="st-dep")stayPreview();
+  if(el.dataset.set!==undefined){const [, , , , , ,u]=SETTINGS[el.dataset.set];$("#o"+el.dataset.set).textContent=`${u==="€/kWh"?(+el.value).toFixed(2):el.value} ${u}`}
+});
+document.addEventListener("change",async e=>{
+  const el=e.target;
+  if(el.dataset.set!==undefined){const [id,l]=SETTINGS[el.dataset.set];
+    if(id==="local.price"){localSet("price",el.value);renderInsights()}else{await call("input_number","set_value",{entity_id:id,value:parseFloat(el.value)})}
+    el.blur();toast(`${l} saved`)}
+  if(el.id==="st-on"){await call("input_boolean",el.checked?"turn_on":"turn_off",{entity_id:E.planned});toast(el.checked?"Stay planned":"Stay switched off")}
+  if(el.id==="set-window"){for(const sw of windowSwitches()){if(live)await call("switch",el.checked?"turn_on":"turn_off",{entity_id:sw.entity_id});else S(sw.entity_id,el.checked?"on":"off")}toast(`Open-window detection ${el.checked?"on":"off"}`)}
+});
+
+/* ---------- Start ---------- */
+const savedTab=localGet("tab"); if(savedTab&&savedTab!=="home")document.querySelector(`[data-tab="${savedTab}"]`)?.click();
+render();
+tryLive().catch(err=>console.warn(err));
+setInterval(()=>{if(!live)renderCurve()},60e3);
+</script>

@@ -1,0 +1,13 @@
+# For QNAP Container Station: Applications → Create → paste this.
+services:
+  stg-heating:
+    image: ghcr.io/wood29/stg-heating:latest
+    container_name: stg-heating
+    restart: unless-stopped
+    ports:
+      - "8793:8080"
+    environment:
+      HA_URL: "https://<st-gilgen-home-assistant>.ts.net"
+      HA_TOKEN: "paste the long-lived token from the St. Gilgen Home Assistant here"
+      # Optional: only these Tailscale logins may open the app (comma separated)
+      ALLOWED_USERS: ""

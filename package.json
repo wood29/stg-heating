@@ -1,0 +1,9 @@
+{
+  "name": "stg-heating",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Seewärme St. Gilgen: heating web app for the NAS, talking to the St. Gilgen Home Assistant",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=22" }
+}
