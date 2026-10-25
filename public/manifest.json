@@ -1,9 +1,22 @@
 {
-  "name": "Seewärme St. Gilgen",
+  "name": "Seewärme",
   "short_name": "Seewärme",
+  "description": "Heating for the St. Gilgen flat",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#eef1f2",
-  "theme_color": "#16232b",
-  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+  "orientation": "any",
+  "background_color": "#0B161C",
+  "theme_color": "#F4F3EF",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Rooms", "url": "/#rooms" },
+    { "name": "Plan a stay", "url": "/#stay" }
+  ]
 }

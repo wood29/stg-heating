@@ -181,9 +181,9 @@ async function costs() {
 
 const SEC = {
   "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
-  "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'",
+  "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; manifest-src 'self'",
 };
-const TYPES = { ".html": "text/html; charset=utf-8", ".json": "application/manifest+json", ".svg": "image/svg+xml", ".png": "image/png" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".json": "application/manifest+json", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8" };
 const json = (res, code, obj) => { res.writeHead(code, { ...SEC, "Content-Type": "application/json", "Cache-Control": "no-store" }); res.end(JSON.stringify(obj)); };
 
 function who(req) {
@@ -205,6 +205,17 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (url.pathname === "/api/costs") return json(res, 200, await costs());
+    // Profile pictures of the people (Mike, Irene, Oli), fetched with the token so the browser never needs it
+    const pic = url.pathname.match(/^\/api\/picture\/(person\.[a-z0-9_]+)$/);
+    if (pic) {
+      const p = states[pic[1]]?.attributes?.entity_picture;
+      if (!p || !p.startsWith("/")) return json(res, 404, { error: "No picture" });
+      const r = await fetch(HA_URL + p, { headers: { Authorization: `Bearer ${HA_TOKEN}` }, signal: AbortSignal.timeout(10000) });
+      const type = r.headers.get("content-type") || "";
+      if (!r.ok || !type.startsWith("image/")) return json(res, 404, { error: "No picture" });
+      res.writeHead(200, { ...SEC, "Content-Type": type, "Cache-Control": "max-age=86400" });
+      return res.end(Buffer.from(await r.arrayBuffer()));
+    }
     if (url.pathname === "/api/call" && req.method === "POST") {
       let body = "";
       for await (const chunk of req) { body += chunk; if (body.length > 4096) return json(res, 413, { error: "Request too large" }); }
@@ -215,11 +226,11 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true });
     }
     if (req.method !== "GET") return json(res, 405, { error: "Not allowed" });
-    const file = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
-    if (!/^[a-z0-9._-]+$/i.test(file)) return json(res, 404, { error: "Not found" });
+    const file = url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname.slice(1));
+    if (!/^(?:(?:icons|fonts)\/)?[a-z0-9_-]+(?:\.[a-z0-9]+)+$/i.test(file)) return json(res, 404, { error: "Not found" });
     const data = await readFile(path.join(PUBLIC, file)).catch(() => null);
     if (!data) return json(res, 404, { error: "Not found" });
-    res.writeHead(200, { ...SEC, "Content-Type": TYPES[path.extname(file)] || "application/octet-stream", "Cache-Control": file === "index.html" ? "no-cache" : "max-age=86400" });
+    res.writeHead(200, { ...SEC, "Content-Type": TYPES[path.extname(file)] || "application/octet-stream", "Cache-Control": file === "index.html" || file === "manifest.json" ? "no-cache" : "max-age=604800" });
     res.end(data);
   } catch (e) {
     json(res, 502, { error: e.message });
