@@ -183,7 +183,7 @@ const SEC = {
   "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
   "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; manifest-src 'self'",
 };
-const TYPES = { ".html": "text/html; charset=utf-8", ".json": "application/manifest+json", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".js": "text/javascript; charset=utf-8", ".txt": "text/plain; charset=utf-8" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".json": "application/manifest+json", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".woff2": "font/woff2", ".js": "text/javascript; charset=utf-8", ".txt": "text/plain; charset=utf-8" };
 const json = (res, code, obj) => { res.writeHead(code, { ...SEC, "Content-Type": "application/json", "Cache-Control": "no-store" }); res.end(JSON.stringify(obj)); };
 
 function who(req) {
@@ -227,7 +227,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method !== "GET") return json(res, 405, { error: "Not allowed" });
     const file = url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname.slice(1));
-    if (!/^(?:(?:icons|fonts|vendor)\/)?[a-z0-9_-]+(?:\.[a-z0-9]+)+$/i.test(file)) return json(res, 404, { error: "Not found" });
+    if (!/^(?:(?:icons|fonts|img)\/)?[a-z0-9_-]+(?:\.[a-z0-9]+)+$/i.test(file)) return json(res, 404, { error: "Not found" });
     const data = await readFile(path.join(PUBLIC, file)).catch(() => null);
     if (!data) return json(res, 404, { error: "Not found" });
     res.writeHead(200, { ...SEC, "Content-Type": TYPES[path.extname(file)] || "application/octet-stream", "Cache-Control": file === "index.html" || file === "manifest.json" ? "no-cache" : "max-age=604800" });
