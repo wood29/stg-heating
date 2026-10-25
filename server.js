@@ -88,13 +88,41 @@ function haSend(msg) {
   });
 }
 
+// Explains in the log why Home Assistant can't be reached (name not found, refused, certificate...).
+async function diagnose() {
+  try {
+    const r = await fetch(HA_URL + "/api/", { headers: { Authorization: `Bearer ${HA_TOKEN}` }, signal: AbortSignal.timeout(10000) });
+    if (r.status === 401) return "Home Assistant answered, but the token was rejected (create a new long-lived token)";
+    return `Home Assistant answered with HTTP ${r.status}`;
+  } catch (e) {
+    const c = e.cause || e;
+    return `${c.code || c.name || "error"}: ${c.message || e.message}`;
+  }
+}
+
 function connect() {
   const url = HA_URL.replace(/^http/, "ws") + "/api/websocket";
-  ws = new WebSocket(url);
-  ws.addEventListener("message", ev => {
+  let sock;
+  try { sock = new WebSocket(url); } catch (e) { console.error("Invalid HA_URL:", e.message); return scheduleRetry(); }
+  ws = sock;
+  let closed = false;
+  const down = async () => {
+    if (closed) return;          // close and error can both fire; handle the drop once
+    closed = true;
+    const wasConnected = connected;
+    if (ws === sock) ws = null;
+    connected = false; broadcast("status", { connected });
+    for (const p of pending.values()) { clearTimeout(p.t); p.reject(new Error("Connection to Home Assistant lost")); }
+    pending.clear();
+    console.log(wasConnected ? "Home Assistant connection lost." : `Can't reach Home Assistant at ${HA_URL}: ${await diagnose()}`);
+    scheduleRetry();
+  };
+  sock.addEventListener("close", down);
+  sock.addEventListener("error", down);   // never call close() here: that re-fires error and loops
+  sock.addEventListener("message", ev => {
     let m; try { m = JSON.parse(ev.data); } catch { return; }
-    if (m.type === "auth_required") ws.send(JSON.stringify({ type: "auth", access_token: HA_TOKEN }));
-    else if (m.type === "auth_invalid") { console.error("Home Assistant rejected the token:", m.message); ws.close(); }
+    if (m.type === "auth_required") sock.send(JSON.stringify({ type: "auth", access_token: HA_TOKEN }));
+    else if (m.type === "auth_invalid") { console.error("Home Assistant rejected the token:", m.message); try { sock.close(); } catch {} }
     else if (m.type === "auth_ok") {
       connected = true; retry = 1; console.log(`Connected to ${HA_URL} (Home Assistant ${m.ha_version})`);
       haSend({ type: "subscribe_events", event_type: "state_changed" }).catch(() => {});
@@ -112,18 +140,17 @@ function connect() {
       m.success ? p.resolve(m.result) : p.reject(new Error(m.error?.message || "Home Assistant refused the request"));
     }
   });
-  const down = () => {
-    if (ws === null) return;
-    ws = null; connected = false; broadcast("status", { connected });
-    for (const p of pending.values()) { clearTimeout(p.t); p.reject(new Error("Connection to Home Assistant lost")); }
-    pending.clear();
-    const wait = Math.min(60, retry); retry *= 2;
-    console.log(`Home Assistant connection lost, retrying in ${wait}s`);
-    setTimeout(connect, wait * 1000);
-  };
-  ws.addEventListener("close", down);
-  ws.addEventListener("error", () => ws?.close());
 }
+
+function scheduleRetry() {
+  const wait = Math.min(60, retry); retry *= 2;
+  console.log(`Trying again in ${wait}s`);
+  setTimeout(connect, wait * 1000);
+}
+
+// A failure talking to Home Assistant must never take the page down.
+process.on("uncaughtException", e => console.error("Unexpected error (app keeps running):", e));
+process.on("unhandledRejection", e => console.error("Unexpected error (app keeps running):", e));
 
 // ---------------------------------------------------------------- browser side
 const clients = new Set();
