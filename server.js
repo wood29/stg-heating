@@ -9,6 +9,7 @@ import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { startUpdater } from "./updater.js";
 
 const HA_URL = (process.env.HA_URL || "").replace(/\/+$/, "");
 const HA_TOKEN = process.env.HA_TOKEN || "";
@@ -237,6 +238,6 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log(`Seewärme listening on :${PORT}`));
+server.listen(PORT, () => { console.log(`Seewärme listening on :${PORT}`); startUpdater(path.dirname(PUBLIC)); });
 connect();
 for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { server.close(); ws?.close(); process.exit(0); });
