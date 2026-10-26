@@ -115,6 +115,24 @@ main{padding:calc(12px + env(safe-area-inset-top,0px)) max(18px,env(safe-area-in
 h1{font-size:26px;line-height:1.15;font-weight:600;letter-spacing:-.025em;margin:2px 0 0;text-wrap:balance}
 h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
 .sub{color:var(--ink-2);margin:6px 0 0;max-width:58ch}
+.temp-row{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.outside{text-align:right;padding-bottom:8px}
+.outside span{display:block;font-size:12.5px;color:var(--ink-3);letter-spacing:.01em}
+.outside b{display:block;font-size:34px;font-weight:300;letter-spacing:-.04em;line-height:1.05;color:var(--ink-2)}
+.air-note{display:flex;align-items:center;gap:10px;width:100%;margin-top:14px;padding:10px 14px;border:0;border-radius:14px;background:color-mix(in srgb,var(--warn) 13%,transparent);color:var(--ink);text-align:left;font-size:13.5px;line-height:1.35}
+.air-note svg{width:20px;height:20px;flex:none;color:var(--warn)} .air-note b{font-weight:600} .air-note em{font-style:normal;color:var(--ink-2)}
+.air-note .chev{margin-left:auto;color:var(--ink-3);width:16px;height:16px}
+.strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding:6px}
+.strip button{border:0;background:none;border-radius:14px;padding:12px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.strip button+button{box-shadow:-1px 0 0 var(--line)}
+.strip button:hover{background:var(--chip)}
+.strip span{font-size:12.5px;color:var(--ink-2)}
+.strip b{font-size:22px;font-weight:400;letter-spacing:-.03em;line-height:1.1}
+@media (max-width:420px){.strip{padding:4px}.strip button{padding:10px 2px 9px}.strip b{font-size:19px}.strip span{font-size:12px}}
+.strip i{width:6px;height:6px;border-radius:50%;background:var(--ok)} .strip i.hot{background:var(--ember)} .strip i.low{background:var(--lake)} .strip i.off{background:var(--ink-3)}
+.strip i.air{background:var(--warn)}
+.co2-dev{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.co2-dev b{font-weight:500}.co2-dev p{margin:2px 0 0;font-size:12.5px;color:var(--ink-3)}
 .facts{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:13.5px;color:var(--ink-2)}
 .facts:empty{display:none}.facts b{color:var(--ink);font-weight:500;font-size:15px;margin-right:4px}
 .room .st{display:block}
@@ -243,7 +261,7 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
 .people{display:flex;gap:8px}
 .ava{width:36px;height:36px;border-radius:50%;background:var(--chip) center/cover;display:grid;place-items:center;font-size:13px;font-weight:600;color:var(--ink-2);position:relative;flex:none;box-shadow:0 0 0 2px var(--bg)}
 .ava b{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;border:2px solid var(--bg);background:var(--ink-3)}
-.ava.here b{background:var(--ok)} .ava.way b{background:var(--warn)}
+.ava b{background:var(--bad)} .ava.here b{background:var(--ok)} .ava.way b{background:var(--warn)}
 .who{display:flex;flex-direction:column}
 .who .p{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
 .who .p:first-child{border-top:0}
@@ -335,7 +353,7 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
 .g-home{display:flex;flex-direction:column;gap:14px}
 .g-two,.g-rooms{display:flex;flex-direction:column;gap:14px}
 @media (min-width:760px){
-  .g-home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"hero plan" "ctrl plan" "wx wx" "today who" "stay who";gap:16px;align-items:start}
+  .g-home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"hero today" "strip strip" "wx wx" "ctrl stay";gap:16px;align-items:start}
   .temp{font-size:96px}
   .g-rooms .card.flat{padding:14px 18px 16px}
   .rooms-card{background:none;box-shadow:none;padding:0}
@@ -412,11 +430,13 @@ main{min-width:0}
       <div class="g-home">
           <div style="grid-area:hero" class="hero">
             <div class="row"><div class="eyebrow" id="h-eyebrow">St. Gilgen</div><div class="people" id="h-people"></div></div>
-            <div class="temp num" id="h-temp">–</div>
+            <div class="temp-row"><div class="temp num" id="h-temp">–</div><div class="outside" id="h-out" hidden><span>Outside</span><b class="num"></b></div></div>
             <div class="status"><i id="h-dot"></i><span id="h-status">–</span></div>
             <p class="sub" id="h-sub"></p>
+            <button class="air-note" id="h-air" data-go="rooms" hidden></button>
             <div class="facts" id="h-facts"></div>
           </div>
+          <div style="grid-area:strip" class="card strip" id="h-rooms" aria-label="Room temperatures"></div>
           <div style="grid-area:ctrl" class="ctrl">
             <div class="seg" role="group" aria-label="Heating mode" id="seg"></div>
             <p class="mode-note" id="mode-note"></p>
@@ -427,18 +447,9 @@ main{min-width:0}
           </div>
           <div style="grid-area:wx" class="card wx" id="wx" hidden></div>
           <div style="grid-area:today" class="card today" id="today" hidden></div>
-          <div style="grid-area:plan" class="card">
-            <div class="card-h"><h2>Rooms</h2><button class="link" data-go="rooms">All rooms</button></div>
-            <div class="plan mini"><div class="m3d" id="m3d-home"><div class="m3d-labels"></div></div><svg id="plan-home" role="img" aria-label="Floor plan of the flat with room temperatures"></svg></div>
-            <div class="legend" aria-hidden="true"><span><i style="background:var(--f-hot)"></i>Heating</span><span><i style="background:var(--f-ok)"></i>Comfortable</span><span><i style="background:var(--f-low)"></i>Lowered</span></div>
-          </div>
           <div style="grid-area:stay" class="card">
             <div class="card-h"><h2>Stay</h2><button class="link" data-go="stay">Plan</button></div>
             <div id="h-stay"></div>
-          </div>
-          <div style="grid-area:who" class="card">
-            <div class="card-h"><h2>Who's here</h2></div>
-            <div class="who" id="h-who"></div>
           </div>
       </div>
     </section>
@@ -504,6 +515,7 @@ main{min-width:0}
         <div class="stack">
           <div class="card"><div class="card-h"><h2>Temperatures</h2></div><div id="comfort"></div></div>
           <div class="card"><div class="card-h"><h2>Night</h2></div><div id="night"></div></div>
+          <div class="card"><div class="card-h"><h2>Fresh air</h2></div><div id="co2set"></div></div>
           <div class="card"><div class="setting" style="display:block"><div style="margin-bottom:12px"><b>Appearance</b><p>Auto follows this device's light or dark setting.</p></div><div class="seg seg3" role="group" aria-label="Appearance" id="theme-seg"></div></div></div>
           <div class="card"><div class="setting"><div><b>Open-window detection</b><p>A thermostat pauses when the room cools quickly, e.g. while airing.</p></div><label class="switch"><input type="checkbox" id="set-window" aria-label="Open-window detection"><span></span></label></div></div>
         </div>
@@ -675,6 +687,8 @@ const E = {
   nightOn: "binary_sensor.stg_night", nightEn: "input_boolean.stg_night_enabled", warming: "input_boolean.stg_night_warming",
   air: { kitchen: ["sensor.indoor_stg_humidity", "sensor.indoor_stg_carbon_dioxide"], bathroom: ["sensor.indoor_stg_bedroom_humidity", "sensor.indoor_stg_bedroom_carbon_dioxide"], bedroom: ["sensor.indoor_stg_bedroom_humidity_2", "sensor.indoor_stg_bedroom_carbon_dioxide_2"] },
   outT: "sensor.indoor_stg_outdoor_stg_temperature",
+  co2On: "input_boolean.stg_co2_alert", co2Limit: "input_number.stg_co2_limit",
+  pushDev: [["mike_m4", "Mike's iPad", "iPad Pro M4"], ["mhh_pro", "iPhone", "MHH Pro"], ["mhh17", "iPhone", "MHH17"]],
   nStart: "input_datetime.stg_night_start", nEnd: "input_datetime.stg_night_end", wakeStart: "sensor.stg_morning_warm_up_start",
 };
 const SEG = [["Auto", "Auto"], ["Home", "Home"], ["Eco", "Out"], ["Away", "Away"]];
@@ -699,6 +713,7 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
   S(E.gap, "0.3"); S(E.preheat, "1.6"); S(E.rate, "0.55"); S(E.last, "");
   S(E.away, "5"); S(E.drop, "2"); S(E.boostInc, "2"); S(E.boostDur, "2"); S(E.margin, "1"); S(E.stopBefore, "1"); S(E.boostTimer, "idle");
   S(E.air.kitchen[0], 61); S(E.air.kitchen[1], 1480); S(E.air.bathroom[0], 58); S(E.air.bathroom[1], 820); S(E.air.bedroom[0], 52); S(E.air.bedroom[1], 760); S(E.outT, 8.4);
+  S(E.co2On, "on"); S(E.co2Limit, 1400); for (const [d] of E.pushDev) S(`input_boolean.stg_co2_push_${d}`, "on");
   S(E.nightOn, "off"); S(E.nightEn, "on"); S(E.warming, "off"); S(E.nStart, "22:00:00"); S(E.nEnd, "08:00:00"); S(E.wakeStart, at(1, 5, 10).toISOString());
   S(E.price, "0.4176", { supplier: "Salzburg AG", valid_from: "2026-09-01" });
   S("person.mike", "home"); S("person.irene", "home"); S("person.oli", "not_home");
@@ -793,10 +808,12 @@ function warmBy() {
   if (st(E.warming) === "on") return hm(st(E.nEnd));
   return "";
 }
+const co2Limit = () => num(E.co2Limit, 1400);
+const SHORT = [["bedroom", "Bed"], ["bathroom", "Bath"], ["hall", "Hall"], ["kitchen", "Dining"], ["living_room", "Living"]];
 function airLine(x) {
   let out = "";
   if (Number.isFinite(x.hum)) out += `<span class="air">${Math.round(x.hum)}% humidity</span>`;
-  if (Number.isFinite(x.co2)) out += x.co2 >= 1400 ? `<span class="air warn">CO₂ ${Math.round(x.co2).toLocaleString("en-GB")} ppm · air it</span>` : `<span class="air">CO₂ ${Math.round(x.co2).toLocaleString("en-GB")} ppm</span>`;
+  if (Number.isFinite(x.co2)) out += x.co2 >= co2Limit() ? `<span class="air warn">CO₂ ${Math.round(x.co2).toLocaleString("en-GB")} ppm · air it</span>` : `<span class="air">CO₂ ${Math.round(x.co2).toLocaleString("en-GB")} ppm</span>`;
   return out;
 }
 function picture(id) {
@@ -909,7 +926,13 @@ function renderHome() {
   $("#h-status").textContent = title; $("#h-dot").className = tone === "ok" ? "" : tone;
   $("#h-sub").textContent = sub;
   const facts = [];
-  if (Number.isFinite(num(E.outT, NaN))) facts.push(`<span><b class="num">${t1(num(E.outT))}°</b> outside</span>`);
+  const ot = num(E.outT, NaN), oel = $("#h-out"); oel.hidden = !Number.isFinite(ot); if (Number.isFinite(ot)) oel.querySelector("b").textContent = `${t1(ot)}°`;
+  $("#h-rooms").innerHTML = SHORT.map(([r, n]) => { const x = room(r), bad = Number.isFinite(x.co2) && x.co2 >= co2Limit();
+    return `<button data-room="${r}" aria-label="${x.name} ${typeof x.cur === "number" ? t1(x.cur) + " degrees" : ""}, ${x.text}"><span>${n}</span><b class="num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}</b><i class="${bad ? "air" : x.state}"></i></button>`; }).join("");
+  const stuffy = ROOMS.map(([r]) => room(r)).filter(x => Number.isFinite(x.co2) && x.co2 >= co2Limit());
+  const an = $("#h-air"); an.hidden = !stuffy.length;
+  if (stuffy.length) { const names = stuffy.map(x => x.name.toLowerCase()), list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names.at(-1) : names[0];
+    an.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/></svg><span><b>Time to air the ${list}</b><br><em>CO₂ ${stuffy.map(x => Math.round(x.co2).toLocaleString("en-GB")).join(" · ")} ppm · a few minutes with the window open</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>`; }
   const dd = (live ? (costData?.days || []) : demoDays()).filter(d => typeof d.eur === "number" && d.eur > 0);
   if (dd.length) { const d = dd[dd.length - 1], dt = new Date(d.start), yd = new Date(); yd.setDate(yd.getDate() - 1);
     const lbl = dt.toDateString() === yd.toDateString() ? "yesterday" : dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
@@ -924,7 +947,7 @@ function renderHome() {
   // people: avatars in the hero, list in the card
   const ava = (id, n, cls = "") => { const pic = picture(id), [pc] = presence(id); return `<div class="ava ${pc} ${cls}" ${pic ? `style="background-image:url('${pic}')"` : ""} title="${n}">${pic ? "" : n[0]}<b></b></div>`; };
   $("#h-people").innerHTML = E.people.filter(([id]) => st(id) && st(id) !== "unknown").map(([id, n]) => ava(id, n)).join("");
-  $("#h-who").innerHTML = E.people.map(([id, n]) => `<div class="p">${ava(id, n)}<div><b style="font-weight:500">${n}</b><span>${presence(id)[1]}</span></div></div>`).join("");
+  void E.people.map(([id, n]) => `<div class="p">${ava(id, n)}<div><b style="font-weight:500">${n}</b><span>${presence(id)[1]}</span></div></div>`).join("");
   // stay timeline
   const planned = st(E.planned) === "on", arr = parseHA(st(E.arr)), dep = parseHA(st(E.dep)), start = new Date(st(E.start)), stop = new Date(st(E.stop)), now = Date.now();
   if (!planned || !arr || !dep) { $("#h-stay").innerHTML = `<p class="note">No stay planned. The flat rests at ${num(E.away, 5)} °C.</p>`; }
@@ -934,7 +957,7 @@ function renderHome() {
     $("#h-stay").innerHTML = `<div class="tl"><i class="bar" style="width:calc(${Math.max(0, idx - 1) / 3 * 100}% - ${idx > 1 ? 4 : 0}px)"></i>${steps.map(([l, d], i) => `<div class="${i < idx ? "done" : ""}"><span>${l}</span><b class="num">${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</b><span class="num">${fmtT(d)}</span></div>`).join("")}</div>`;
   }
   drawModel();
-  renderPlan($("#plan-home"), planLook(), { mini: true });
+  if ($("#plan-home")) renderPlan($("#plan-home"), planLook(), { mini: true });
 }
 
 function planLook() {
@@ -1029,7 +1052,7 @@ const SETTINGS = [
 ];
 function windowSwitches() { return Object.values(states).filter(s => s.entity_id.startsWith("switch.") && / Floor Heating Switch Window detection$/.test(s.attributes?.friendly_name || "")); }
 function renderSettings() {
-  if (document.activeElement?.closest?.("#settings,#comfort,#night")) return;
+  if (document.activeElement?.closest?.("#settings,#comfort,#night,#co2set")) return;
   $("#settings").innerHTML = SETTINGS.map(([id, l, d, mi, ma, s, u], i) => `<div class="setting"><div><b>${l}</b><p>${d}</p></div><output class="num" id="o${i}">${num(id)} ${u}</output><input type="range" id="s${i}" aria-label="${l}" min="${mi}" max="${ma}" step="${s}" value="${num(id)}" data-set="${i}"></div>`).join("") +
     `<div class="setting"><div><b>Electricity price</b><p>From your income and expense app.</p></div><output class="num">${price() ? price().toFixed(4) : "–"} €/kWh</output></div>`;
   const stp = (r, n, kind, v) => `<div class="stepper sm"><button aria-label="${n} ${kind} cooler" data-${kind === "day" ? "comfort" : "night"}="-0.5" data-room="${r}">−</button><output class="num">${t1(v)}°</output><button aria-label="${n} ${kind} warmer" data-${kind === "day" ? "comfort" : "night"}="0.5" data-room="${r}">+</button></div>`;
@@ -1038,6 +1061,11 @@ function renderSettings() {
   $("#night").innerHTML = `<div class="setting"><div><b>Night temperatures</b><p>During a stay, from night start until the morning warm-up.</p></div><label class="switch"><input type="checkbox" id="n-en" aria-label="Night temperatures" ${en ? "checked" : ""}><span></span></label></div>
     <div class="setting"><div><b>Night starts</b></div><input type="time" class="time" id="n-start" value="${hm(st(E.nStart))}" aria-label="Night starts"></div>
     <div class="setting"><div><b>Warm by</b><p>${w ? `Tonight the floors start warming at <b class="num">${fmtT(new Date(w))}</b>, worked out from each room's temperature and how fast it warms up.` : "When you get up."}</p></div><input type="time" class="time" id="n-end" value="${hm(st(E.nEnd))}" aria-label="Warm by"></div>`;
+  const lim = co2Limit(), on = st(E.co2On) !== "off";
+  $("#co2set").innerHTML = `<div class="setting"><div><b>CO₂ alert</b><p>A note on Home and a quiet push when a room stays above the limit for 10 minutes while someone is in the flat. Never 22:00–07:30, at most every 90 minutes.</p></div><label class="switch"><input type="checkbox" id="co2-on" aria-label="CO2 alert" ${on ? "checked" : ""}><span></span></label></div>
+    <div class="setting"><div><b>Limit</b><p>Below 1,000 ppm is fresh; above 1,400 people feel tired.</p></div><div class="stepper sm"><button aria-label="Lower limit" data-co2lim="-100">−</button><output class="num">${Math.round(lim).toLocaleString("en-GB")}</output><button aria-label="Higher limit" data-co2lim="100">+</button></div></div>` +
+    `<div style="padding-top:10px;font-size:12.5px;color:var(--ink-3)">Push to</div>` +
+    E.pushDev.map(([d, n, m]) => `<div class="co2-dev"><div><b>${n}</b><p>${m}</p></div><label class="switch"><input type="checkbox" data-push="${d}" aria-label="Push to ${n} ${m}" ${st(`input_boolean.stg_co2_push_${d}`) !== "off" ? "checked" : ""} ${on ? "" : "disabled"}><span></span></label></div>`).join("");
   const th = lsGet("theme") || "auto";
   $("#theme-seg").innerHTML = [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => `<button data-theme-pick="${v}" aria-pressed="${th === v}">${l}</button>`).join("");
   const ws = windowSwitches(); $("#set-window").checked = ws.length ? ws.every(s => s.state === "on") : true;
@@ -1258,6 +1286,7 @@ document.addEventListener("click", async e => {
   if (t.id === "p-frost") { const on = st(E.mode) === "Frost protection"; await call("input_select", "select_option", { entity_id: E.mode, option: on ? "Auto" : "Frost protection" }); return toast(on ? "Back to Auto" : "Frost protection only"); }
   if (t.dataset.step && sheetRoom) { const r = sheetRoom, v = Math.min(28, Math.max(5, (attr(E.climate(r), "temperature") || 20) + parseFloat(t.dataset.step))); await call("climate", "set_temperature", { entity_id: E.climate(r), temperature: v }); return toast(`${RN[r]} set to ${t1(v)} °C`); }
   if (t.dataset.comfort) { const r = t.dataset.room, v = Math.min(28, Math.max(10, num(E.comfort(r), 20) + parseFloat(t.dataset.comfort))); await call("number", "set_value", { entity_id: E.comfort(r), value: v }); t.blur(); renderSettings(); return toast(`${RN[r]} comfort ${t1(v)} °C`); }
+  if (t.dataset.co2lim) { const v = Math.min(3000, Math.max(800, co2Limit() + parseFloat(t.dataset.co2lim))); await call("input_number", "set_value", { entity_id: E.co2Limit, value: v }); t.blur(); renderSettings(); return toast(`CO₂ limit ${v.toLocaleString("en-GB")} ppm`); }
   if (t.dataset.night) { const r = t.dataset.room, v = Math.min(25, Math.max(5, num(E.night(r), 18) + parseFloat(t.dataset.night))); await call("input_number", "set_value", { entity_id: E.night(r), value: v }); t.blur(); renderSettings(); return toast(`${RN[r]} at night ${t1(v)} °C`); }
   if (t.dataset.room) return openRoom(t.dataset.room);
   if (t.id === "st-save") { const a = new Date($("#st-arr").value), d = new Date($("#st-dep").value); if (!(a < d)) return toast("Departure must be after arrival");
@@ -1278,6 +1307,8 @@ document.addEventListener("change", async e => {
   const el = e.target;
   if (el.dataset.set !== undefined) { const [id, l] = SETTINGS[el.dataset.set]; await call("input_number", "set_value", { entity_id: id, value: parseFloat(el.value) }); el.blur(); toast(`${l} saved`); }
   if (el.id === "st-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.planned }); toast(el.checked ? "Stay planned" : "Stay switched off"); }
+  if (el.id === "co2-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.co2On }); toast(el.checked ? "CO₂ alert on" : "CO₂ alert off"); }
+  if (el.dataset.push) { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: `input_boolean.stg_co2_push_${el.dataset.push}` }); toast(`${el.checked ? "Pushes" : "No pushes"} to ${E.pushDev.find(x => x[0] === el.dataset.push).slice(1).join(" ")}`); }
   if (el.id === "n-en") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.nightEn }); toast(el.checked ? "Night temperatures on" : "Night temperatures off"); }
   if ((el.id === "n-start" || el.id === "n-end") && /^\d{2}:\d{2}$/.test(el.value)) { await call("input_datetime", "set_datetime", { entity_id: el.id === "n-start" ? E.nStart : E.nEnd, time: el.value + ":00" }); el.blur(); toast(el.id === "n-start" ? `Night from ${el.value}` : `Warm by ${el.value}`); }
   if (el.id === "set-window") { for (const sw of windowSwitches()) await call("switch", el.checked ? "turn_on" : "turn_off", { entity_id: sw.entity_id }); toast(`Open-window detection ${el.checked ? "on" : "off"}`); }

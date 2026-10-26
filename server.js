@@ -65,8 +65,9 @@ function allowed(domain, service, data) {
       if (["input_datetime.stg_night_start", "input_datetime.stg_night_end"].includes(id)) return /^\d{2}:\d{2}:00$/.test(data.time) && keys === "entity_id,time";
       return ["input_datetime.stg_arrival", "input_datetime.stg_departure"].includes(id) && DT.test(data.datetime) && keys === "datetime,entity_id";
     case "input_boolean.turn_on": case "input_boolean.turn_off":
-      return ["input_boolean.stg_arrival_planned", "input_boolean.stg_night_enabled"].includes(id) && keys === "entity_id";
+      return (["input_boolean.stg_arrival_planned", "input_boolean.stg_night_enabled", "input_boolean.stg_co2_alert"].includes(id) || /^input_boolean\.stg_co2_push_[a-z0-9_]+$/.test(id)) && keys === "entity_id";
     case "input_number.set_value":
+      if (id === "input_number.stg_co2_limit") return num(data.value, 800, 3000) && keys === "entity_id,value";
       if (new RegExp(`^input_number\\.stg_night_${R}$`).test(id)) return num(data.value, 5, 25) && keys === "entity_id,value";
       return SETTINGS.includes(id) && num(data.value, 0, 40) && keys === "entity_id,value";
     case "switch.turn_on": case "switch.turn_off":
