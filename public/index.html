@@ -70,7 +70,8 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 main{padding:calc(12px + env(safe-area-inset-top,0px)) max(18px,env(safe-area-inset-right,0px)) calc(104px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));max-width:560px;width:100%;margin:0 auto}
 .tabs{position:fixed;inset:auto 0 0 0;z-index:20;padding:8px max(12px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));
   background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(1.6) blur(20px);-webkit-backdrop-filter:saturate(1.6) blur(20px);border-top:1px solid var(--line)}
-.tabs .in{display:grid;grid-template-columns:repeat(5,1fr);max-width:520px;margin:0 auto}
+.tabs .in{display:grid;grid-template-columns:repeat(6,1fr);max-width:560px;margin:0 auto}
+.tabs .nav span{font-size:10.5px;letter-spacing:-.01em}
 .nav{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:500;color:var(--ink-3);padding:6px 0;min-height:48px}
 .nav svg{width:24px;height:24px}
 .nav[aria-current="page"]{color:var(--ink)}
@@ -133,6 +134,21 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
 .strip i.air{background:var(--warn)}
 .co2-dev{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
 .co2-dev b{font-weight:500}.co2-dev p{margin:2px 0 0;font-size:12.5px;color:var(--ink-3)}
+.strip-wrap{display:flex;flex-direction:column;gap:10px}
+.bench-card{padding:0}
+.bench-row{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;padding:12px 16px;text-align:left;border-radius:inherit}
+.bench-row:hover{background:var(--chip)}
+.bench-row>svg:first-child{width:22px;height:22px;color:var(--ink-2);flex:none}
+.bench-row .bn{flex:1;min-width:0;font-weight:500}.bench-row .bn em{display:block;font-style:normal;font-weight:400;font-size:12.5px;color:var(--ink-3)}
+.bench-row b{font-size:20px;font-weight:400;letter-spacing:-.03em}
+.bench-row i{width:7px;height:7px;border-radius:50%;background:var(--ok)} .bench-row i.hot{background:var(--ember)} .bench-row i.idle,.bench-row i.off{background:var(--ink-3)}
+.bench-row .chev{width:16px;height:16px;color:var(--ink-3)}
+.bench-hero{padding-bottom:4px}
+.stats.stats3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:520px){.stats3 .stat{padding:12px}.stats3 .stat b{font-size:21px}}
+.stepper button:disabled{opacity:.4;cursor:default}
+.bx-bar .seg{max-width:none}
+.m3d-pin.small{padding:3px 13px 4px 9px;border-radius:10px;background:var(--pin)}.m3d-pin.small .n{font-size:10px}.m3d-pin.small b{font-size:12.5px}
 .facts{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:13.5px;color:var(--ink-2)}
 .facts:empty{display:none}.facts b{color:var(--ink);font-weight:500;font-size:15px;margin-right:4px}
 .room .st{display:block}
@@ -436,7 +452,7 @@ main{min-width:0}
             <button class="air-note" id="h-air" data-go="rooms" hidden></button>
             <div class="facts" id="h-facts"></div>
           </div>
-          <div style="grid-area:strip" class="card strip" id="h-rooms" aria-label="Room temperatures"></div>
+          <div style="grid-area:strip" class="strip-wrap"><div class="card strip" id="h-rooms" aria-label="Room temperatures"></div><div class="card bench-card" id="h-bench"></div></div>
           <div style="grid-area:ctrl" class="ctrl">
             <div class="seg" role="group" aria-label="Heating mode" id="seg"></div>
             <p class="mode-note" id="mode-note"></p>
@@ -465,6 +481,34 @@ main{min-width:0}
     </section>
 
     <!-- STAY -->
+    <section class="view" id="v-bench" hidden aria-label="Bench warmer">
+      <div class="page-h"><div class="eyebrow">Dining room</div><h1>Bench warmer</h1></div>
+      <div class="g-two">
+        <div class="stack">
+          <div class="hero bench-hero">
+            <div class="temp num" id="b-temp">–</div>
+            <div class="status"><i id="b-dot"></i><span id="b-status">–</span></div>
+            <p class="sub" id="b-sub"></p>
+          </div>
+          <div class="card">
+            <div class="setting"><div><b>Bench heating</b></div><div class="seg seg2 mini" role="group" aria-label="Bench heating on or off" id="b-power"></div></div>
+            <div class="setting"><div><b>Temperature</b><p>On the bench surface</p></div><div class="stepper" id="b-set"></div></div>
+            <div class="pills" id="b-presets" style="padding-top:12px"></div>
+          </div>
+          <div class="card"><div class="setting" style="border-top:0"><div><b>Heater power</b><p>An estimate until you know it: the label on the heating mat or the manual. Energy and cost are worked out from it.</p></div><div class="stepper sm" id="b-watts"></div></div></div>
+        </div>
+        <div class="stack">
+          <div class="hx-bar bx-bar">
+            <div class="seg seg4" role="group" aria-label="Period" id="bx-seg"><button data-bx="day">Day</button><button data-bx="week">Week</button><button data-bx="month">Month</button><button data-bx="year">Year</button></div>
+            <div class="hx-nav"><button id="bx-prev" aria-label="Previous period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><b id="bx-label" aria-live="polite">–</b><button id="bx-next" aria-label="Next period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button></div>
+          </div>
+          <div class="stats stats3 hx-kpis" id="bx-kpis"></div>
+          <div class="card hx-card"><div class="card-h"><h2>Energy</h2><span class="small muted">estimated from heating time</span></div><div class="hx-chart" id="bx-chart"></div>
+            <div class="legend"><span><i style="background:var(--ember)"></i>kWh</span><span><i style="background:var(--s-out)"></i>Bench °C</span></div></div>
+        </div>
+      </div>
+    </section>
+
     <section class="view" id="v-stay" hidden aria-label="Stays">
       <div class="page-h"><div class="eyebrow">Stays</div><h1>Arrive warm, leave it cold</h1><p class="sub">Heating starts by itself early enough for your arrival. While you're here, going out lowers each room a little. From departure the flat holds 5 °C.</p></div>
       <div class="g-two">
@@ -687,6 +731,7 @@ const E = {
   nightOn: "binary_sensor.stg_night", nightEn: "input_boolean.stg_night_enabled", warming: "input_boolean.stg_night_warming",
   air: { kitchen: ["sensor.indoor_stg_humidity", "sensor.indoor_stg_carbon_dioxide"], bathroom: ["sensor.indoor_stg_bedroom_humidity", "sensor.indoor_stg_bedroom_carbon_dioxide"], bedroom: ["sensor.indoor_stg_bedroom_humidity_2", "sensor.indoor_stg_bedroom_carbon_dioxide_2"] },
   outT: "sensor.indoor_stg_outdoor_stg_temperature",
+  bench: "climate.bench_warmer", benchOn: "binary_sensor.stg_bench_heating", benchW: "input_number.stg_bench_power", benchE: "sensor.stg_bench_energy",
   co2On: "input_boolean.stg_co2_alert", co2Limit: "input_number.stg_co2_limit",
   pushDev: [["mhh17", "Mike's iPhone", "iPhone 17"], ["mike_m4", "Mike's iPad", "iPad Pro M4"]],
   nStart: "input_datetime.stg_night_start", nEnd: "input_datetime.stg_night_end", wakeStart: "sensor.stg_morning_warm_up_start",
@@ -695,6 +740,7 @@ const SEG = [["Auto", "Auto"], ["Home", "Home"], ["Eco", "Out"], ["Away", "Away"
 const NAV = [
   ["home", "Home", '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
   ["rooms", "Rooms", '<path d="M3 4h18v16H3zM3 12h8V4M11 12v8M15 12h6"/>'],
+  ["bench", "Bench", '<path d="M3 13h18M5 13V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 13v6M20 13v6M4 17h16"/><path d="M9 4c0 1-1 1-1 2M12 4c0 1-1 1-1 2M15 4c0 1-1 1-1 2"/>'],
   ["stay", "Stays", '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
   ["insights", "Insights", '<path d="M4 20V11M10 20V4M16 20v-6M22 20H2"/>'],
   ["settings", "Settings", '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>'],
@@ -713,6 +759,7 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
   S(E.gap, "0.3"); S(E.preheat, "1.6"); S(E.rate, "0.55"); S(E.last, "");
   S(E.away, "5"); S(E.drop, "2"); S(E.boostInc, "2"); S(E.boostDur, "2"); S(E.margin, "1"); S(E.stopBefore, "1"); S(E.boostTimer, "idle");
   S(E.air.kitchen[0], 61); S(E.air.kitchen[1], 1480); S(E.air.bathroom[0], 58); S(E.air.bathroom[1], 820); S(E.air.bedroom[0], 52); S(E.air.bedroom[1], 760); S(E.outT, 8.4);
+  S(E.bench, "heat", { current_temperature: 21.5, temperature: 24, hvac_modes: ["off", "heat"], min_temp: 5, max_temp: 40 }); S(E.benchOn, "on"); S(E.benchW, 150); S(E.benchE, 3.2);
   S(E.co2On, "on"); S(E.co2Limit, 1400); for (const [d] of E.pushDev) S(`input_boolean.stg_co2_push_${d}`, "on");
   S(E.nightOn, "off"); S(E.nightEn, "on"); S(E.warming, "off"); S(E.nStart, "22:00:00"); S(E.nEnd, "08:00:00"); S(E.wakeStart, at(1, 5, 10).toISOString());
   S(E.price, "0.4176", { supplier: "Salzburg AG", valid_from: "2026-09-01" });
@@ -740,6 +787,7 @@ async function call(domain, service, data) {
   }
   const id = data.entity_id;
   if (domain === "input_select") { S(id, data.option); demoMode(data.option); }
+  else if (domain === "climate" && id === E.bench) { const c = demo[E.bench]; if (service === "set_hvac_mode") c.state = data.hvac_mode; else c.attributes = { ...c.attributes, temperature: data.temperature }; S(E.benchOn, c.state === "heat" && c.attributes.current_temperature < c.attributes.temperature ? "on" : "off"); }
   else if (domain === "climate") setTarget(id.split(".")[1].replace("_floor_heating", ""), data.temperature);
   else if (domain === "number" || domain === "input_number") { S(id, data.value, states[id]?.attributes); if (domain === "number") { const r = id.split(".")[1].replace("_floor_heating_comfort_temperature", ""); if (st(E.mode) === "Home" || st(E.mode) === "Auto") setTarget(r, data.value); } }
   else if (domain === "input_datetime") { S(id, data.datetime || data.time); demoStay(); }
@@ -808,6 +856,13 @@ function warmBy() {
   if (st(E.warming) === "on") return hm(st(E.nEnd));
   return "";
 }
+function bench() {
+  const c = states[E.bench], on = c?.state === "heat", cur = c?.attributes?.current_temperature, tgt = c?.attributes?.temperature;
+  const online = !!c && c.state !== "unavailable", heating = st(E.benchOn) === "on";
+  const state = !online ? "off" : !on ? "idle" : heating ? "hot" : "ok";
+  const text = { off: "Offline", idle: "Off", hot: "Warming up", ok: "Warm" }[state];
+  return { on, cur, tgt, online, heating, state, text, watts: num(E.benchW, 150) };
+}
 const co2Limit = () => num(E.co2Limit, 1400);
 const SHORT = [["bedroom", "Bed"], ["bathroom", "Bath"], ["hall", "Hall"], ["kitchen", "Dining"], ["living_room", "Living"]];
 function airLine(x) {
@@ -834,7 +889,7 @@ function render() {
     const el = $(id); el.classList.toggle("live", live && haUp);
     el.querySelector("span").textContent = !live ? "Example data" : haUp ? "Live" : "Reconnecting";
   }
-  renderHome(); renderRooms(); renderStay(); renderInsights(); renderSettings();
+  renderHome(); renderRooms(); renderStay(); renderInsights(); renderSettings(); renderBench();
   if (sheetRoom) renderSheet();
 }
 
@@ -857,6 +912,53 @@ function situation() {
   if (m === "Boost") { const f = attr(E.boostTimer, "finishes_at"); return [`Boost +${num(E.boostInc, 2)} °C`, "hot", `Until ${f ? fmtT(new Date(f)) : "…"}, then back to before.`, "Ends by itself."]; }
   return [m || "…", "ok", "", ""];
 }
+
+/* ---------- bench warmer ---------- */
+const BX = { kind: lsGet("bx.kind") || "week", anchor: new Date(), data: null, req: 0 };
+function renderBench() {
+  if (!$("#v-bench") || $("#v-bench").hidden) return;
+  const b = bench();
+  $("#b-temp").innerHTML = typeof b.cur === "number" ? `${t1(b.cur)}<sup>°C</sup>` : "–";
+  $("#b-dot").className = b.state === "hot" ? "hot" : b.state === "ok" ? "" : "low"; $("#b-status").textContent = b.text;
+  $("#b-sub").textContent = !b.online ? "The thermostat isn't reachable right now." : b.on ? (b.heating ? `Warming the bench to ${t1(b.tgt)} °C, about ${b.watts} W while it heats.` : `Holding ${t1(b.tgt)} °C. It switches on again when the bench cools.`) : "Switched off. Tap On to warm the bench.";
+  $("#b-power").innerHTML = [["off", "Off"], ["heat", "On"]].map(([v, l]) => `<button data-bmode="${v}" aria-pressed="${(b.on ? "heat" : "off") === v}">${l}</button>`).join("");
+  $("#b-set").innerHTML = `<button data-bstep="-0.5" aria-label="Cooler" ${b.on ? "" : "disabled"}>−</button><output class="num">${t1(b.tgt ?? 0)}°</output><button data-bstep="0.5" aria-label="Warmer" ${b.on ? "" : "disabled"}>+</button>`;
+  $("#b-presets").innerHTML = [22, 25, 28].map(v => `<button class="pill" data-bset="${v}" aria-pressed="${b.on && Math.abs((b.tgt ?? 0) - v) < .1}">${v}°</button>`).join("");
+  $("#b-watts").innerHTML = `<button data-bw="-10" aria-label="Less">−</button><output class="num">${Math.round(b.watts)} W</output><button data-bw="10" aria-label="More">+</button>`;
+  if (!BX.data) bxLoad(); else bxRender();
+}
+async function bxLoad() {
+  const R = hxRange(BX.kind, BX.anchor), id = ++BX.req;
+  $("#bx-label").textContent = R.label; $("#bx-next").disabled = R.e > new Date();
+  document.querySelectorAll("#bx-seg button").forEach(x => x.setAttribute("aria-pressed", x.dataset.bx === BX.kind));
+  let d = null;
+  if (!live) { const k = [], t = []; R.buckets.forEach((b, i) => { if (b > new Date()) return; const h = b.getHours(), on = R.bucket === "hour" ? (h >= 7 && h < 10) || (h >= 18 && h < 22) : true;
+      k.push([b.getTime(), +(on ? (R.bucket === "hour" ? .1 : R.bucket === "day" ? .45 + (i % 3) * .2 : 12) : 0).toFixed(2)]); t.push([b.getTime(), +(on ? 24 + (i % 4) * .5 : 19).toFixed(1), 18.5, 26]); });
+    d = { bench: k, series: { bench_temp: t }, prev: { bench: 3.1 }, price: .4176 }; }
+  else { const q = new URLSearchParams({ start: R.s.toISOString(), end: R.e.toISOString(), pstart: R.ps.toISOString(), bucket: R.bucket }); d = await fetch("api/history?" + q).then(r => r.ok ? r.json() : null).catch(() => null); }
+  if (id !== BX.req) return;
+  BX.data = d; BX.range = R; bxRender();
+}
+function bxRender() {
+  const R = BX.range, d = BX.data; if (!R) return;
+  if (!d) { $("#bx-chart").innerHTML = `<p class="hx-empty">Couldn't load the history just now.</p>`; return; }
+  const idx = new Map(R.buckets.map((b, i) => [b.getTime(), i]));
+  const put = rows => { const a = Array(R.buckets.length).fill(null); for (const [t, ...v] of rows || []) { const i = idx.get(t); if (i !== undefined) a[i] = v.length === 1 ? v[0] : v; } return a; };
+  const kwh = put(d.bench), tmp = put(d.series?.bench_temp), price = d.price || price0() || 0;
+  const tk = kwh.reduce((a, v) => a + (v || 0), 0), w = bench().watts, hrs = w ? tk * 1000 / w : 0;
+  const fmtH = h => { const m = Math.round(h * 60), H = Math.floor(m / 60), M = m % 60; return H ? `${H} h${M ? ` ${M} min` : ""}` : `${M} min`; };
+  $("#bx-kpis").innerHTML = [
+    ["Energy", tk ? `${tk.toFixed(tk >= 10 ? 1 : 2)}<small> kWh</small>` : "0<small> kWh</small>", d.prev?.bench ? `${d.prev.bench.toFixed(2)} kWh in ${R.prevName}` : "&nbsp;"],
+    ["Cost", `€ ${(tk * price).toFixed(2)}`, `≈ at € ${price.toFixed(4)}/kWh`],
+    ["Heating time", hrs ? fmtH(hrs) : "–", `at ${Math.round(w)} W`],
+  ].map(([l, v, sub]) => `<div class="stat"><span>${l}</span><b class="num">${v}</b><em>${sub}</em></div>`).join("");
+  hxChart($("#bx-chart"), R, {
+    bars: { vals: kwh, unit: "kWh", color: "var(--ember)" },
+    lines: [{ key: "bench", vals: tmp.map(v => v && v[0]), color: "var(--s-out)", name: "Bench", unit: "°C", right: true }],
+    tip: i => [kwh[i] != null ? `<b>${(kwh[i] || 0).toFixed(2)} kWh</b> · € ${((kwh[i] || 0) * price).toFixed(2)}` : "No data", tmp[i] ? `<i style="background:var(--s-out)"></i>Bench ${t1(tmp[i][0])}°` : ""],
+  });
+}
+function bxShift(dir) { const a = new Date(BX.anchor); if (BX.kind === "day") a.setDate(a.getDate() + dir); else if (BX.kind === "week") a.setDate(a.getDate() + 7 * dir); else if (BX.kind === "month") { a.setDate(1); a.setMonth(a.getMonth() + dir); } else a.setFullYear(a.getFullYear() + dir); BX.anchor = a; bxLoad(); }
 
 /* ---------- weather ---------- */
 let wx = null;
@@ -929,6 +1031,7 @@ function renderHome() {
   const ot = num(E.outT, NaN), oel = $("#h-out"); oel.hidden = !Number.isFinite(ot); if (Number.isFinite(ot)) oel.querySelector("b").textContent = `${t1(ot)}°`;
   $("#h-rooms").innerHTML = SHORT.map(([r, n]) => { const x = room(r), bad = Number.isFinite(x.co2) && x.co2 >= co2Limit();
     return `<button data-room="${r}" aria-label="${x.name} ${typeof x.cur === "number" ? t1(x.cur) + " degrees" : ""}, ${x.text}"><span>${n}</span><b class="num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}</b><i class="${bad ? "air" : x.state}"></i></button>`; }).join("");
+  { const b = bench(); $("#h-bench").innerHTML = `<button data-go="bench" class="bench-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h18M5 13V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 13v6M20 13v6M4 17h16"/></svg><span class="bn">Bench warmer<em>${b.on ? `${b.text} · set to ${t1(b.tgt ?? 0)}°` : b.text}</em></span><b class="num">${typeof b.cur === "number" ? t1(b.cur) + "°" : "–"}</b><i class="${b.state}"></i><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>`; }
   const stuffy = ROOMS.map(([r]) => room(r)).filter(x => Number.isFinite(x.co2) && x.co2 >= co2Limit());
   const an = $("#h-air"); an.hidden = !stuffy.length;
   if (stuffy.length) { const names = stuffy.map(x => x.name.toLowerCase()), list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names.at(-1) : names[0];
@@ -979,6 +1082,7 @@ function drawModel() {
   M.mount(host, { interactive: true });
   const looks = {};
   for (const [r] of ROOMS) { const x = room(r); looks[r] = { state: x.state, label: typeof x.cur === "number" ? `${t1(x.cur)}°` : "–", name: x.name, selected: sheetRoom === r }; }
+  { const b = bench(); if (b.online) looks.bench = { state: b.state === "hot" ? "hot" : "", label: typeof b.cur === "number" ? `${t1(b.cur)}°` : "–", name: "Bench", small: true, go: "bench" }; }
   M.update(looks);
 }
 addEventListener("m3d-ready", () => drawModel());
@@ -1107,7 +1211,7 @@ function hxRange(kind = HX.kind, a = HX.anchor) {
   const buckets = [];
   for (let d = new Date(s); d < e;) { buckets.push(new Date(d)); if (bucket === "hour") d.setHours(d.getHours() + 1); else if (bucket === "day") d.setDate(d.getDate() + 1); else d.setMonth(d.getMonth() + 1); }
   const prevName = kind === "day" ? "the day before" : kind === "week" ? "the week before" : kind === "month" ? ps.toLocaleDateString("en-GB", { month: "long" }) : String(ps.getFullYear());
-  return { s, e, ps, bucket, label, buckets, prevName };
+  return { s, e, ps, bucket, label, buckets, prevName, kind };
 }
 function hxShift(dir) {
   const a = new Date(HX.anchor);
@@ -1220,12 +1324,13 @@ function hxChart(el, R, o) {
   if (!L) { el.innerHTML = `<p class="hx-empty">No data for this period yet.</p>`; return; }
   for (const v of L.t) svg += `<line class="gl" x1="${padL}" x2="${W - padR}" y1="${yL(v).toFixed(1)}" y2="${yL(v).toFixed(1)}"/><text class="ax" x="${padL - 6}" y="${(yL(v) + 3.5).toFixed(1)}" text-anchor="end">${o.bars ? (v >= 10 ? Math.round(v) : +v.toFixed(1)) : Math.round(v)}</text>`;
   if (Rr) svg += `<text class="ax unit" x="${W - padR + 6}" y="${top - 12}">°C</text>`;
-  if (Rr) for (const v of Rr.t) svg += `<text class="ax" x="${W - padR + 6}" y="${(yR(v) + 3.5).toFixed(1)}">${Math.round(v)}</text>`;
+  const fmtT = (ax, v) => (ax.t[1] - ax.t[0]) < 1 ? v.toFixed(1) : String(Math.round(v));
+  if (Rr) for (const v of Rr.t) svg += `<text class="ax" x="${W - padR + 6}" y="${(yR(v) + 3.5).toFixed(1)}">${fmtT(Rr, v)}</text>`;
   svg += `<text class="ax unit" x="${padL - 6}" y="${top - 12}" text-anchor="end">${o.bars ? "kWh" : o.lines?.[0]?.unit || ""}</text>`;
   if (o.threshold) { const y = yL(o.threshold[0]); svg += `<line class="thr" x1="${padL}" x2="${W - padR}" y1="${y}" y2="${y}"/><text class="ax thr-t" x="${W - padR - 2}" y="${y - 4}" text-anchor="end">${o.threshold[1]} · ${o.threshold[0]}</text>`; }
   // x labels
   const lab = i => { const b = R.buckets[i]; return R.bucket === "hour" ? (b.getHours() % 6 === 0 ? String(b.getHours()).padStart(2, "0") : "") :
-    HX.kind === "week" ? b.toLocaleDateString("en-GB", { weekday: "short" }) : R.bucket === "day" ? ([1, 8, 15, 22, 29].includes(b.getDate()) ? String(b.getDate()) : "") :
+    R.kind === "week" ? b.toLocaleDateString("en-GB", { weekday: "short" }) : R.bucket === "day" ? ([1, 8, 15, 22, 29].includes(b.getDate()) ? String(b.getDate()) : "") :
     b.toLocaleDateString("en-GB", { month: W < 520 ? "narrow" : "short" }); };
   for (let i = 0; i < n; i++) { const t = lab(i); if (t) svg += `<text class="ax" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${t}</text>`; }
   // bars
@@ -1253,7 +1358,7 @@ function hxChart(el, R, o) {
   const hide = () => { tip.hidden = true; cur.setAttribute("visibility", "hidden"); };
   s.addEventListener("pointermove", show); s.addEventListener("pointerdown", show); s.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") hide(); });
 }
-let hxRz; addEventListener("resize", () => { clearTimeout(hxRz); hxRz = setTimeout(() => currentTab === "insights" && hxRender(), 160); });
+let hxRz; addEventListener("resize", () => { clearTimeout(hxRz); hxRz = setTimeout(() => { if (currentTab === "insights") hxRender(); if (currentTab === "bench") bxRender(); }, 160); });
 
 /* ---------- navigation ---------- */
 function navHTML() { return NAV.map(([k, l, p]) => `<button class="nav" data-tab="${k}" aria-current="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg><span>${l}</span></button>`).join(""); }
@@ -1266,6 +1371,7 @@ function go(tab) {
   document.querySelectorAll(".view").forEach(v => v.hidden = v.id !== "v-" + tab);
   lsSet("tab", tab); window.scrollTo(0, 0); render();
   if (tab === "insights") hxLoad();
+  if (tab === "bench") { BX.data = null; renderBench(); }
 }
 
 /* ---------- interaction ---------- */
@@ -1274,6 +1380,14 @@ document.addEventListener("click", async e => {
   if (!t) { if (e.target === $("#sheet")) $("#sheet").close(); return; }
   if (t.dataset.tab) return go(t.dataset.tab);
   if (t.dataset.hx) { HX.kind = t.dataset.hx; lsSet("hx.kind", HX.kind); HX.anchor = new Date(); return hxLoad(); }
+  if (t.dataset.bmode) { await call("climate", "set_hvac_mode", { entity_id: E.bench, hvac_mode: t.dataset.bmode }); return toast(t.dataset.bmode === "heat" ? "Bench warmer on" : "Bench warmer off"); }
+  if (t.dataset.bstep || t.dataset.bset) { const b = bench(), v = Math.min(40, Math.max(5, t.dataset.bset ? +t.dataset.bset : (b.tgt ?? 20) + parseFloat(t.dataset.bstep)));
+    if (!b.on) await call("climate", "set_hvac_mode", { entity_id: E.bench, hvac_mode: "heat" });
+    await call("climate", "set_temperature", { entity_id: E.bench, temperature: v }); return toast(`Bench set to ${t1(v)} °C`); }
+  if (t.dataset.bw) { const v = Math.min(1000, Math.max(20, num(E.benchW, 150) + parseFloat(t.dataset.bw))); await call("input_number", "set_value", { entity_id: E.benchW, value: v }); return toast(`Heater power ${v} W`); }
+  if (t.dataset.bx) { BX.kind = t.dataset.bx; lsSet("bx.kind", BX.kind); BX.anchor = new Date(); return bxLoad(); }
+  if (t.id === "bx-prev") return bxShift(-1);
+  if (t.id === "bx-next") return bxShift(1);
   if (t.id === "hx-prev") return hxShift(-1);
   if (t.id === "hx-next") return hxShift(1);
   if (t.dataset.hxt) { const k = t.dataset.hxt; HX.tsel.has(k) ? HX.tsel.delete(k) : HX.tsel.add(k); if (!HX.tsel.size) HX.tsel.add("out"); lsSet("hx.t", [...HX.tsel].join(",")); return hxRender(); }

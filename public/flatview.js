@@ -50,8 +50,8 @@ export async function createFlatView() {
       for (const [id, L] of Object.entries(looks)) {
         const a = geo.anchors[id]; if (!a) continue;
         let p = pins[id];
-        if (!p || !p.isConnected) { p = document.createElement("button"); p.dataset.room = id; labelsEl.appendChild(p); pins[id] = p; }
-        p.className = `m3d-pin ${L.state || ""} ${L.selected ? "sel" : ""} ${labelsEl.dataset.compact ? "compact" : ""}`;
+        if (!p || !p.isConnected) { p = document.createElement("button"); if (L.go) p.dataset.go = L.go; else p.dataset.room = id; labelsEl.appendChild(p); pins[id] = p; }
+        p.className = `m3d-pin ${L.state || ""} ${L.selected ? "sel" : ""} ${labelsEl.dataset.compact ? "compact" : ""} ${L.small ? "small" : ""}`;
         p.style.left = `${(a[0] / W * 100).toFixed(2)}%`; p.style.top = `${(a[1] / H * 100).toFixed(2)}%`;
         p.style.transform = "translate(-50%, -100%)";
         p.innerHTML = `<span class="n">${L.name}</span><b class="num">${L.label}</b>${L.state === "hot" ? "<i></i>" : ""}`;

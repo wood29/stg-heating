@@ -36,7 +36,7 @@ const RELEVANT = [
   new RegExp(`^sensor\\.${R}_floor_temperature$`),
   /^person\.(mike|irene|oli)$/,
   /^input_(select|text|datetime|boolean|number)\.stg_/,
-  /^sensor\.stg_/, /^sensor\.indoor_stg_/, /^weather\.forecast_home$/, /^binary_sensor\.stg_(stay_active|night)$/, /^timer\.stg_heating_boost$/, /^zone\.home$/,
+  /^sensor\.stg_/, /^sensor\.indoor_stg_/, /^weather\.forecast_home$/, /^binary_sensor\.stg_(stay_active|night|bench_heating)$/, /^climate\.bench_warmer$/, /^timer\.stg_heating_boost$/, /^zone\.home$/,
 ];
 const isWindowSwitch = s => s.entity_id.startsWith("switch.") && / Floor Heating Switch Window detection$/.test(s.attributes?.friendly_name || "");
 const relevant = s => s && (s.entity_id === PRICE_SENSOR || RELEVANT.some(r => r.test(s.entity_id)) || isWindowSwitch(s));
@@ -58,15 +58,19 @@ function allowed(domain, service, data) {
     case "input_select.select_option":
       return id === "input_select.stg_heating_mode" && MODES.includes(data.option) && keys === "entity_id,option";
     case "climate.set_temperature":
+      if (id === "climate.bench_warmer") return num(data.temperature, 5, 40) && keys === "entity_id,temperature";
       return new RegExp(`^climate\\.${R}_floor_heating$`).test(id) && num(data.temperature, 5, 28) && keys === "entity_id,temperature";
     case "number.set_value":
       return new RegExp(`^number\\.${R}_floor_heating_comfort_temperature$`).test(id) && num(data.value, 10, 28) && keys === "entity_id,value";
+    case "climate.set_hvac_mode":
+      return id === "climate.bench_warmer" && ["off", "heat"].includes(data.hvac_mode) && keys === "entity_id,hvac_mode";
     case "input_datetime.set_datetime":
       if (["input_datetime.stg_night_start", "input_datetime.stg_night_end"].includes(id)) return /^\d{2}:\d{2}:00$/.test(data.time) && keys === "entity_id,time";
       return ["input_datetime.stg_arrival", "input_datetime.stg_departure"].includes(id) && DT.test(data.datetime) && keys === "datetime,entity_id";
     case "input_boolean.turn_on": case "input_boolean.turn_off":
       return (["input_boolean.stg_arrival_planned", "input_boolean.stg_night_enabled", "input_boolean.stg_co2_alert"].includes(id) || /^input_boolean\.stg_co2_push_[a-z0-9_]+$/.test(id)) && keys === "entity_id";
     case "input_number.set_value":
+      if (id === "input_number.stg_bench_power") return num(data.value, 20, 1000) && keys === "entity_id,value";
       if (id === "input_number.stg_co2_limit") return num(data.value, 800, 3000) && keys === "entity_id,value";
       if (new RegExp(`^input_number\\.stg_night_${R}$`).test(id)) return num(data.value, 5, 25) && keys === "entity_id,value";
       return SETTINGS.includes(id) && num(data.value, 0, 40) && keys === "entity_id,value";
@@ -191,8 +195,10 @@ const HIST = {
   floor_living_room: "sensor.living_room_floor_temperature", floor_kitchen: "sensor.kitchen_floor_temperature", floor_hall: "sensor.hall_floor_temperature",
   floor_bathroom: "sensor.bathroom_floor_temperature", floor_bedroom: "sensor.bedroom_floor_temperature",
   hum_kitchen: "sensor.indoor_stg_humidity", hum_bathroom: "sensor.indoor_stg_bedroom_humidity", hum_bedroom: "sensor.indoor_stg_bedroom_humidity_2",
+  bench_temp: "sensor.stg_bench_temperature",
   co2_kitchen: "sensor.indoor_stg_carbon_dioxide", co2_bathroom: "sensor.indoor_stg_bedroom_carbon_dioxide", co2_bedroom: "sensor.indoor_stg_bedroom_carbon_dioxide_2",
 };
+const BENCH_STAT = "sensor.stg_bench_energy";
 const histCache = new Map();
 async function history(q) {
   const start = new Date(q.get("start")), end = new Date(q.get("end")), pstart = new Date(q.get("pstart")), bucket = q.get("bucket");
@@ -202,8 +208,8 @@ async function history(q) {
   const stats = (ids, types, s0, e0, period) => haSend({ type: "recorder/statistics_during_period", start_time: s0.toISOString(), end_time: e0.toISOString(),
     statistic_ids: ids, period, types, units: { temperature: "°C" } });
   const [meter, prev, env] = await Promise.all([
-    stats([ENERGY_STAT, COST_STAT], ["change"], start, end, bucket),
-    stats([ENERGY_STAT, COST_STAT], ["change"], pstart, start, "month").catch(() => ({})),
+    stats([ENERGY_STAT, COST_STAT, BENCH_STAT], ["change"], start, end, bucket),
+    stats([ENERGY_STAT, COST_STAT, BENCH_STAT], ["change"], pstart, start, "month").catch(() => ({})),
     stats(Object.values(HIST), ["mean", "min", "max"], start, end, bucket),
   ]);
   const r1 = v => typeof v === "number" ? Math.round(v * 100) / 100 : null;
@@ -211,7 +217,8 @@ async function history(q) {
   const data = {
     kwh: (meter[ENERGY_STAT] || []).map(x => [x.start, r1(x.change)]),
     eur: (meter[COST_STAT] || []).map(x => [x.start, r1(x.change)]),
-    prev: { kwh: r1(sum(prev[ENERGY_STAT])), eur: r1(sum(prev[COST_STAT])), has: !!(prev[ENERGY_STAT] || []).length },
+    prev: { kwh: r1(sum(prev[ENERGY_STAT])), eur: r1(sum(prev[COST_STAT])), has: !!(prev[ENERGY_STAT] || []).length, bench: r1(sum(prev[BENCH_STAT])) },
+    bench: (meter[BENCH_STAT] || []).map(x => [x.start, r1(x.change)]),
     series: Object.fromEntries(Object.entries(HIST).map(([k, id]) => [k, (env[id] || []).map(x => [x.start, r1(x.mean), r1(x.min), r1(x.max)])])),
     price: states[PRICE_SENSOR] ? parseFloat(states[PRICE_SENSOR].state) || null : null,
   };
