@@ -199,6 +199,7 @@ const HIST = {
   co2_kitchen: "sensor.indoor_stg_carbon_dioxide", co2_bathroom: "sensor.indoor_stg_bedroom_carbon_dioxide", co2_bedroom: "sensor.indoor_stg_bedroom_carbon_dioxide_2",
 };
 const BENCH_STAT = "sensor.stg_bench_energy";
+const ROOM_STATS = Object.fromEntries(ROOMS.map(r => [r, `sensor.${r}_floor_heating_energy_total`]));
 const histCache = new Map();
 async function history(q) {
   const start = new Date(q.get("start")), end = new Date(q.get("end")), pstart = new Date(q.get("pstart")), bucket = q.get("bucket");
@@ -208,7 +209,7 @@ async function history(q) {
   const stats = (ids, types, s0, e0, period) => haSend({ type: "recorder/statistics_during_period", start_time: s0.toISOString(), end_time: e0.toISOString(),
     statistic_ids: ids, period, types, units: { temperature: "°C" } });
   const [meter, prev, env] = await Promise.all([
-    stats([ENERGY_STAT, COST_STAT, BENCH_STAT], ["change"], start, end, bucket),
+    stats([ENERGY_STAT, COST_STAT, BENCH_STAT, ...Object.values(ROOM_STATS)], ["change"], start, end, bucket),
     stats([ENERGY_STAT, COST_STAT, BENCH_STAT], ["change"], pstart, start, "month").catch(() => ({})),
     stats(Object.values(HIST), ["mean", "min", "max"], start, end, bucket),
   ]);
@@ -219,6 +220,7 @@ async function history(q) {
     eur: (meter[COST_STAT] || []).map(x => [x.start, r1(x.change)]),
     prev: { kwh: r1(sum(prev[ENERGY_STAT])), eur: r1(sum(prev[COST_STAT])), has: !!(prev[ENERGY_STAT] || []).length, bench: r1(sum(prev[BENCH_STAT])) },
     bench: (meter[BENCH_STAT] || []).map(x => [x.start, r1(x.change)]),
+    rooms: Object.fromEntries(Object.entries(ROOM_STATS).map(([r, id]) => [r, (meter[id] || []).map(x => [x.start, r1(x.change)])])),
     series: Object.fromEntries(Object.entries(HIST).map(([k, id]) => [k, (env[id] || []).map(x => [x.start, r1(x.mean), r1(x.min), r1(x.max)])])),
     price: states[PRICE_SENSOR] ? parseFloat(states[PRICE_SENSOR].state) || null : null,
   };

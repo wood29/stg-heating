@@ -546,7 +546,7 @@ main{min-width:0}
         <div class="card hx-card"><div class="card-h"><h2>Air</h2><div class="seg seg2 mini" role="group" aria-label="Humidity or CO2" id="hx-air-seg"><button data-hxair="hum">Humidity</button><button data-hxair="co2">CO₂</button></div></div><div class="hx-chart" id="hx-air"></div><div class="legend" id="hx-air-legend"></div></div>
       </div>
       <div class="g-two">
-        <div class="stack"><div class="card"><div class="card-h"><h2>Heating by room</h2><span class="small muted">last 30 days · <span class="num" id="in-price"></span></span></div><div id="ebars"></div></div><div class="card"><div class="card-h"><h2>Heating curve</h2></div><p class="note" id="in-curve"></p></div></div>
+        <div class="stack"><div class="card"><div class="card-h"><h2>Heating by room</h2><span class="small muted num" id="in-price"></span></div><div id="ebars"></div></div><div class="card"><div class="card-h"><h2>Heating curve</h2></div><p class="note" id="in-curve"></p></div></div>
         <div class="card"><div class="card-h"><h2>Thermostats</h2></div><dl class="kv" id="health"></dl><p class="note" id="health-note" style="margin-top:12px"></p></div>
       </div>
     </section>
@@ -1136,9 +1136,6 @@ function demoDays() { const out = [], t = new Date(); t.setHours(0, 0, 0, 0); fo
 function renderInsights() {
   const rate = num(E.rate, .5), margin = num(E.margin, 1), away = num(E.away, 5), p = price();
   const comfort = ROOMS.reduce((a, [r]) => a + num(E.comfort(r), 20), 0) / ROOMS.length;
-  $("#in-price").textContent = p ? `€ ${p.toFixed(4).replace(/0+$/, "")}/kWh` : "";
-  const kwh = ROOMS.map(([r, n]) => [n, num(E.energy(r))]), max = Math.max(...kwh.map(x => x[1]), 1);
-  $("#ebars").innerHTML = kwh.map(([n, v]) => `<div class="ebar"><span>${n}</span><div class="track"><div class="fill" style="width:${v / max * 100}%"></div></div><span class="v num">${Math.round(v)} kWh · €${Math.round(v * p)}</span></div>`).join("");
   const last = st(E.last);
   $("#in-curve").textContent = `The flat warms up by about ${rate.toFixed(2)} °C an hour. Each warm-up from a lowered temperature is measured and blended in, and the planner starts heating that much earlier, plus ${margin} h to be safe. ${last && last !== "unknown" ? "Last measurement: " + last + "." : "No warm-up measured yet."}`;
   $("#health").innerHTML = ROOMS.map(([r, n]) => { const x = room(r), w = num(E.wifi(r)); return `<dt>${n}</dt><dd style="color:${!x.online ? "var(--bad)" : w < -70 ? "var(--warn)" : "var(--ok)"}">${x.online ? "Online" : "Offline"} · <span class="num">${w} dBm</span></dd>`; }).join("");
@@ -1243,7 +1240,10 @@ function hxDemo(R) {
     }
   });
   const pk = kwh.reduce((a, x) => a + x[1], 0) * (.8 + rnd(7) * .4);
-  return { kwh, eur, prev: { kwh: +pk.toFixed(1), eur: +(pk * .4176).toFixed(1), has: true }, series: ser, price: .4176 };
+  const share = { living_room: .34, kitchen: .14, hall: .27, bathroom: .14, bedroom: .11 };
+  const rooms = Object.fromEntries(Object.entries(share).map(([r, f]) => [r, kwh.map(([t, k]) => [t, +(k * f * .9).toFixed(2)])]));
+  const bench = kwh.map(([t, k]) => [t, +(k * .04).toFixed(2)]);
+  return { kwh, eur, prev: { kwh: +pk.toFixed(1), eur: +(pk * .4176).toFixed(1), has: true }, series: ser, price: .4176, rooms, bench };
 }
 
 async function hxLoad() {
@@ -1288,6 +1288,15 @@ function hxRender() {
     ["Outside", outMeans.length ? `${t1(avg(outMeans))}<small> °C</small>` : "–", outMeans.length ? `low ${Math.round(Math.min(...out.filter(Boolean).map(v => v[1] ?? v[0])))}° · high ${Math.round(Math.max(...out.filter(Boolean).map(v => v[2] ?? v[0])))}°` : "average"],
     days && te ? ["Per day", `€ ${(te / days).toFixed(2)}`, `${fmtE(tk / days)} kWh a day`] : ["Inside", inside.length ? `${t1(avg(inside))}<small> °C</small>` : "–", "average, rooms with a sensor"],
   ].map(([l, v, sub]) => `<div class="stat"><span>${l}</span><b class="num">${v}</b><em>${sub || "&nbsp;"}</em></div>`).join("");
+  { const eff = tk > 0 && te > 0 ? te / tk : price || 0;
+    const rows = ROOMS.map(([r, n]) => [n, (d.rooms?.[r] || []).filter(([t]) => idx.has(t)).reduce((a, [, v]) => a + Math.max(0, v || 0), 0)]);
+    const bk = (d.bench || []).filter(([t]) => idx.has(t)).reduce((a, [, v]) => a + Math.max(0, v || 0), 0);
+    if (bk > 0) rows.push(["Bench", bk]);
+    const sumR = rows.reduce((a, [, v]) => a + v, 0), max = Math.max(...rows.map(x => x[1]), .001);
+    $("#in-price").textContent = `${R.label}${eff ? ` · € ${eff.toFixed(4).replace(/0+$/, "")}/kWh` : ""}`;
+    $("#ebars").innerHTML = sumR > 0 ? rows.map(([n, v]) => `<div class="ebar"><span>${n}</span><div class="track"><div class="fill" style="width:${v / max * 100}%"></div></div><span class="v num">${v >= 10 ? Math.round(v) : v.toFixed(1)} kWh · €${(v * eff).toFixed(v * eff >= 10 ? 0 : 2)}</span></div>`).join("") +
+      (tk > 0 ? `<p class="note" style="margin-top:10px">Floor heating is ${Math.round(Math.min(100, sumR / tk * 100))}% of the flat's electricity in this period${anyEst ? " (cost estimated)" : ""}.</p>` : "")
+      : `<p class="hx-empty" style="padding:24px 0">No room data for this period.</p>`; }
   $("#hx-e-note").textContent = anyEst ? "≈ before Sept: kWh × current price" : "smart meter, a day behind";
   hxChart($("#hx-energy"), R, {
     bars: { vals: kwh, est, unit: "kWh", color: "var(--ember)" },
