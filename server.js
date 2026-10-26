@@ -182,6 +182,42 @@ async function costs() {
   };
 }
 
+// History for the Insights explorer: energy and cost from the smart meter, temperatures,
+// humidity and CO2 from long-term statistics. The browser sends the period in its own time zone.
+const HIST = {
+  out: "sensor.indoor_stg_outdoor_stg_temperature",
+  air_kitchen: "sensor.indoor_stg_temperature", air_bathroom: "sensor.indoor_stg_bedroom_temperature", air_bedroom: "sensor.indoor_stg_bedroom_temperature_2",
+  floor_living_room: "sensor.living_room_floor_temperature", floor_kitchen: "sensor.kitchen_floor_temperature", floor_hall: "sensor.hall_floor_temperature",
+  floor_bathroom: "sensor.bathroom_floor_temperature", floor_bedroom: "sensor.bedroom_floor_temperature",
+  hum_kitchen: "sensor.indoor_stg_humidity", hum_bathroom: "sensor.indoor_stg_bedroom_humidity", hum_bedroom: "sensor.indoor_stg_bedroom_humidity_2",
+  co2_kitchen: "sensor.indoor_stg_carbon_dioxide", co2_bathroom: "sensor.indoor_stg_bedroom_carbon_dioxide", co2_bedroom: "sensor.indoor_stg_bedroom_carbon_dioxide_2",
+};
+const histCache = new Map();
+async function history(q) {
+  const start = new Date(q.get("start")), end = new Date(q.get("end")), pstart = new Date(q.get("pstart")), bucket = q.get("bucket");
+  if (![start, end, pstart].every(d => !isNaN(d)) || !["hour", "day", "month"].includes(bucket) || end <= start || end - start > 400 * 864e5 || start - pstart > 400 * 864e5) throw new Error("Bad period");
+  const key = [start.toISOString(), end.toISOString(), bucket].join("|");
+  const hit = histCache.get(key); if (hit && Date.now() - hit.at < 5 * 60e3) return hit.data;
+  const stats = (ids, types, s0, e0, period) => haSend({ type: "recorder/statistics_during_period", start_time: s0.toISOString(), end_time: e0.toISOString(),
+    statistic_ids: ids, period, types, units: { temperature: "°C" } });
+  const [meter, prev, env] = await Promise.all([
+    stats([ENERGY_STAT, COST_STAT], ["change"], start, end, bucket),
+    stats([ENERGY_STAT, COST_STAT], ["change"], pstart, start, "month").catch(() => ({})),
+    stats(Object.values(HIST), ["mean", "min", "max"], start, end, bucket),
+  ]);
+  const r1 = v => typeof v === "number" ? Math.round(v * 100) / 100 : null;
+  const sum = rows => (rows || []).reduce((a, x) => a + (x.change || 0), 0);
+  const data = {
+    kwh: (meter[ENERGY_STAT] || []).map(x => [x.start, r1(x.change)]),
+    eur: (meter[COST_STAT] || []).map(x => [x.start, r1(x.change)]),
+    prev: { kwh: r1(sum(prev[ENERGY_STAT])), eur: r1(sum(prev[COST_STAT])), has: !!(prev[ENERGY_STAT] || []).length },
+    series: Object.fromEntries(Object.entries(HIST).map(([k, id]) => [k, (env[id] || []).map(x => [x.start, r1(x.mean), r1(x.min), r1(x.max)])])),
+    price: states[PRICE_SENSOR] ? parseFloat(states[PRICE_SENSOR].state) || null : null,
+  };
+  histCache.set(key, { at: Date.now(), data }); if (histCache.size > 60) histCache.delete(histCache.keys().next().value);
+  return data;
+}
+
 // Weather forecast (met.no via Home Assistant): daily and hourly, cached for 20 minutes.
 const WEATHER = process.env.WEATHER_ENTITY || "weather.forecast_home";
 let wxCache = null, wxAt = 0;
@@ -224,6 +260,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/api/costs") return json(res, 200, await costs());
     if (url.pathname === "/api/weather") return json(res, 200, await forecast());
+    if (url.pathname === "/api/history") { try { return json(res, 200, await history(url.searchParams)); } catch (e) { return json(res, e.message === "Bad period" ? 400 : 502, { error: e.message }); } }
     // Profile pictures of the people (Mike, Irene, Oli), fetched with the token so the browser never needs it
     const pic = url.pathname.match(/^\/api\/picture\/(person\.[a-z0-9_]+)$/);
     if (pic) {

@@ -357,6 +357,41 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
   .temp{font-size:112px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+:root{--s-out:#4C93B8;--s-dining:#E8743B;--s-bath:#2FA58C;--s-bed:#8B6CD9;--s-living:#C9A227;--s-hall:#8E949B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--s-out:#7DB7D3;--s-dining:#F2894F;--s-bath:#4CC3A6;--s-bed:#A88BEB;--s-living:#DDB93E;--s-hall:#A2A7AE}}
+:root[data-theme="dark"]{--s-out:#7DB7D3;--s-dining:#F2894F;--s-bath:#4CC3A6;--s-bed:#A88BEB;--s-living:#DDB93E;--s-hall:#A2A7AE}
+.hx-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.hx-bar .seg{flex:1 1 260px;max-width:420px;min-width:0}.seg.seg4{grid-template-columns:repeat(4,1fr)}
+.hx-nav{display:flex;align-items:center;gap:6px;flex:1 1 220px;justify-content:flex-end;min-width:0}
+@media (max-width:520px){.hx-nav{justify-content:space-between}.hx-nav b{min-width:0;flex:1}}
+.hx-nav b{font-size:17px;font-weight:500;min-width:150px;text-align:center;letter-spacing:-.01em}
+.hx-nav button{width:44px;height:44px;border-radius:50%;border:0;background:var(--card);box-shadow:var(--shadow);display:grid;place-items:center}
+.hx-nav button svg{width:20px;height:20px}.hx-nav button:disabled{opacity:.35;cursor:default}
+.hx-kpis{margin-bottom:14px}.hx-kpis .stat em{display:block;font-style:normal;font-size:12px;color:var(--ink-3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hx-kpis .stat b small{font-size:.5em;color:var(--ink-2);letter-spacing:0}
+.hx-kpis .up{color:var(--ember)} .hx-kpis .down{color:var(--ok)}
+.hx-card{margin-bottom:14px;transition:opacity .25s}.hx-loading .hx-card,.hx-loading .hx-kpis{opacity:.45}
+.hx-chart{position:relative;min-height:180px;width:100%;min-width:0}
+.hx-card,.hx-kpis,.hx-bar,#v-insights .g-two>*{min-width:0}
+#v-insights{overflow-x:clip}
+main{min-width:0}
+.hx-svg{display:block;width:100%;height:auto;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.hx-svg .gl{stroke:var(--line);stroke-width:1}.hx-svg .ax{font-size:11px;fill:var(--ink-3);font-family:var(--font);font-variant-numeric:tabular-nums}
+.hx-svg .bar{fill:var(--ember)}.hx-svg .bar.est{fill:none;stroke:var(--ember);stroke-width:1.2;stroke-dasharray:3 2}
+.hx-svg .ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}.hx-svg .ln.dash{stroke-dasharray:5 4;stroke-width:1.6}
+.hx-svg .band{opacity:.14}.hx-svg .thr{stroke:var(--warn);stroke-dasharray:4 4}.hx-svg .thr-t{fill:var(--warn)}
+.hx-svg .cur{stroke:var(--ink-3);stroke-width:1}.hx-svg .hit{fill:transparent;cursor:crosshair}
+.hx-tip{position:absolute;top:-4px;transform:translate(-50%,-100%);background:var(--ink);color:var(--bg);border-radius:12px;padding:8px 11px;font-size:12.5px;line-height:1.5;pointer-events:none;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:3}
+.hx-tip span{display:block;opacity:.7;font-size:11.5px}.hx-tip b{font-weight:600}
+.hx-tip i,.chip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.hx-empty{color:var(--ink-3);font-size:14px;padding:50px 0;text-align:center;margin:0}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:-2px 0 12px;padding-bottom:2px}.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:none;border-radius:999px;padding:6px 11px;font-size:12.5px;color:var(--ink-2);min-height:32px}
+.chip[aria-pressed="true"]{background:var(--chip);color:var(--ink);border-color:transparent}
+.chip.floor i{border-radius:2px}
+.legend .est-key{background:none;border:1.2px dashed var(--ember)}
+.seg.seg2{grid-template-columns:repeat(2,1fr)}.seg.mini{padding:3px;border-radius:12px}.seg.mini button{min-height:32px;font-size:13px;padding:0 12px;border-radius:9px}
 </style>
 
 <div class="shell">
@@ -443,19 +478,20 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
 
     <!-- INSIGHTS -->
     <section class="view" id="v-insights" hidden aria-label="Insights">
-      <div class="page-h"><div class="eyebrow">Insights</div><h1>What heating costs</h1></div>
-      <div class="stats">
-        <div class="stat"><span>Electricity, 30 days</span><b class="num" id="in-kwh">–</b></div>
-        <div class="stat"><span>Cost, 30 days</span><b class="num" id="in-eur">–</b></div>
-        <div class="stat"><span>Warm-up speed</span><b class="num" id="in-rate">–</b></div>
-        <div class="stat"><span>Full warm-up from 5 °C</span><b class="num" id="in-full">–</b></div>
+      <div class="page-h"><div class="eyebrow">Insights</div><h1>Heating over time</h1></div>
+      <div class="hx-bar">
+        <div class="seg seg4" role="group" aria-label="Period" id="hx-seg"><button data-hx="day">Day</button><button data-hx="week">Week</button><button data-hx="month">Month</button><button data-hx="year">Year</button></div>
+        <div class="hx-nav"><button id="hx-prev" aria-label="Previous period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><b id="hx-label" aria-live="polite">–</b><button id="hx-next" aria-label="Next period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button></div>
+      </div>
+      <div class="stats hx-kpis" id="hx-kpis"></div>
+      <div class="card hx-card"><div class="card-h"><h2>Electricity</h2><span class="small muted" id="hx-e-note"></span></div><div class="hx-chart" id="hx-energy"></div>
+        <div class="legend"><span><i style="background:var(--ember)"></i>kWh</span><span><i class="est-key"></i>estimated cost basis</span><span><i style="background:var(--s-out)"></i>Outside °C</span></div></div>
+      <div class="g-two">
+        <div class="card hx-card"><div class="card-h"><h2>Temperatures</h2><span class="small muted">dashed: floor</span></div><div class="chips" id="hx-tchips"></div><div class="hx-chart" id="hx-temp"></div></div>
+        <div class="card hx-card"><div class="card-h"><h2>Air</h2><div class="seg seg2 mini" role="group" aria-label="Humidity or CO2" id="hx-air-seg"><button data-hxair="hum">Humidity</button><button data-hxair="co2">CO₂</button></div></div><div class="hx-chart" id="hx-air"></div><div class="legend" id="hx-air-legend"></div></div>
       </div>
       <div class="g-two">
-        <div class="card chart"><div class="card-h"><h2>Cost per day</h2><span class="small muted">whole flat</span></div><svg id="cost-chart" viewBox="0 0 340 132" role="img" aria-label="Electricity cost per day, last 30 days"></svg><p class="note" id="cost-note" style="margin-top:10px"></p></div>
-        <div class="card"><div class="card-h"><h2>Heating by room</h2><span class="small muted num" id="in-price"></span></div><div id="ebars"></div></div>
-      </div>
-      <div class="g-two">
-        <div class="card"><div class="card-h"><h2>Heating curve</h2></div><p class="note" id="in-curve"></p></div>
+        <div class="stack"><div class="card"><div class="card-h"><h2>Heating by room</h2><span class="small muted">last 30 days · <span class="num" id="in-price"></span></span></div><div id="ebars"></div></div><div class="card"><div class="card-h"><h2>Heating curve</h2></div><p class="note" id="in-curve"></p></div></div>
         <div class="card"><div class="card-h"><h2>Thermostats</h2></div><dl class="kv" id="health"></dl><p class="note" id="health-note" style="margin-top:12px"></p></div>
       </div>
     </section>
@@ -973,27 +1009,9 @@ function demoDays() { const out = [], t = new Date(); t.setHours(0, 0, 0, 0); fo
 function renderInsights() {
   const rate = num(E.rate, .5), margin = num(E.margin, 1), away = num(E.away, 5), p = price();
   const comfort = ROOMS.reduce((a, [r]) => a + num(E.comfort(r), 20), 0) / ROOMS.length;
-  $("#in-rate").textContent = `${rate.toFixed(2)} °C/h`;
-  $("#in-full").textContent = `${Math.round((comfort - away) / rate + margin)} h`;
   $("#in-price").textContent = p ? `€ ${p.toFixed(4).replace(/0+$/, "")}/kWh` : "";
   const kwh = ROOMS.map(([r, n]) => [n, num(E.energy(r))]), max = Math.max(...kwh.map(x => x[1]), 1);
   $("#ebars").innerHTML = kwh.map(([n, v]) => `<div class="ebar"><span>${n}</span><div class="track"><div class="fill" style="width:${v / max * 100}%"></div></div><span class="v num">${Math.round(v)} kWh · €${Math.round(v * p)}</span></div>`).join("");
-  const days = live ? (costData?.days || []) : demoDays();
-  const tk = days.reduce((a, d) => a + (d.kwh || 0), 0), te = days.reduce((a, d) => a + (d.eur || 0), 0);
-  $("#in-kwh").textContent = days.length ? `${Math.round(tk)} kWh` : "–"; $("#in-eur").textContent = days.length ? `€ ${Math.round(te)}` : "–";
-  const svg = $("#cost-chart");
-  if (!days.length) { svg.innerHTML = `<text x="0" y="66" style="font-size:12px;fill:var(--ink-2)">Waiting for smart meter data…</text>`; }
-  else {
-    const W = 340, top = 8, bot = 108, mx = Math.max(...days.map(d => d.eur || 0), 1), bw = W / days.length;
-    const step = mx > 40 ? 20 : mx > 20 ? 10 : mx > 8 ? 5 : 2, y = v => bot - v / mx * (bot - top);
-    let s = "";
-    for (let v = step; v <= mx; v += step) s += `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="0" y="${y(v) - 4}" style="font-size:10px;fill:var(--ink-3)">€${v}</text>`;
-    s += days.map((d, i) => { const v = d.eur || 0, h = Math.max(1.5, bot - y(v)); return `<rect x="${(i * bw + 1.2).toFixed(1)}" y="${(bot - h).toFixed(1)}" width="${Math.max(1, bw - 2.4).toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${v > mx * .25 ? "var(--ember-strong)" : "var(--ink-3)"}" opacity="${v > mx * .25 ? 1 : .45}"><title>${fmtDay(new Date(d.start))}: € ${v.toFixed(2)} · ${(d.kwh || 0).toFixed(1)} kWh</title></rect>`; }).join("");
-    s += [0, days.length - 1].map(i => `<text x="${i ? W : 0}" y="${bot + 17}" text-anchor="${i ? "end" : "start"}" style="font-size:10.5px;fill:var(--ink-3)">${new Date(days[i].start).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</text>`).join("");
-    svg.innerHTML = s;
-  }
-  const pr = live ? costData?.price : { supplier: attr(E.price, "supplier"), valid_from: attr(E.price, "valid_from") };
-  $("#cost-note").textContent = `${live ? "" : "Example data. "}Orange days are days with the heating on; meter data arrives a day late.${pr?.supplier ? ` € ${p.toFixed(4)}/kWh from ${pr.supplier}, from your income and expense app.` : ""}`;
   const last = st(E.last);
   $("#in-curve").textContent = `The flat warms up by about ${rate.toFixed(2)} °C an hour. Each warm-up from a lowered temperature is measured and blended in, and the planner starts heating that much earlier, plus ${margin} h to be safe. ${last && last !== "unknown" ? "Last measurement: " + last + "." : "No warm-up measured yet."}`;
   $("#health").innerHTML = ROOMS.map(([r, n]) => { const x = room(r), w = num(E.wifi(r)); return `<dt>${n}</dt><dd style="color:${!x.online ? "var(--bad)" : w < -70 ? "var(--warn)" : "var(--ok)"}">${x.online ? "Online" : "Offline"} · <span class="num">${w} dBm</span></dd>`; }).join("");
@@ -1035,6 +1053,180 @@ function setTheme(v) {
 }
 setTheme(lsGet("theme") || "auto");
 
+/* ---------- Insights explorer: day / week / month / year ---------- */
+const HXS = {
+  out: ["Outside", "var(--s-out)"],
+  air_kitchen: ["Dining room", "var(--s-dining)"], air_bathroom: ["Bathroom", "var(--s-bath)"], air_bedroom: ["Bedroom", "var(--s-bed)"],
+  floor_living_room: ["Living room floor", "var(--s-living)", true], floor_kitchen: ["Dining room floor", "var(--s-dining)", true], floor_hall: ["Hall floor", "var(--s-hall)", true],
+  floor_bathroom: ["Bathroom floor", "var(--s-bath)", true], floor_bedroom: ["Bedroom floor", "var(--s-bed)", true],
+};
+const HXA = { kitchen: ["Dining room", "var(--s-dining)"], bathroom: ["Bathroom", "var(--s-bath)"], bedroom: ["Bedroom", "var(--s-bed)"] };
+const HX = { kind: lsGet("hx.kind") || "month", anchor: new Date(), data: null, air: lsGet("hx.air") || "hum", req: 0,
+  tsel: new Set((lsGet("hx.t") || "out,air_kitchen,air_bedroom").split(",").filter(k => HXS[k])) };
+
+function hxRange(kind = HX.kind, a = HX.anchor) {
+  const s = new Date(a); s.setHours(0, 0, 0, 0);
+  let e, ps, bucket, label;
+  if (kind === "day") { e = new Date(s); e.setDate(s.getDate() + 1); ps = new Date(s); ps.setDate(s.getDate() - 1); bucket = "hour";
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    label = s.getTime() === t.getTime() ? "Today" : s.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); }
+  else if (kind === "week") { s.setDate(s.getDate() - ((s.getDay() + 6) % 7)); e = new Date(s); e.setDate(s.getDate() + 7); ps = new Date(s); ps.setDate(s.getDate() - 7); bucket = "day";
+    const l = new Date(e); l.setDate(e.getDate() - 1);
+    label = `${s.getDate()}${s.getMonth() !== l.getMonth() ? " " + s.toLocaleDateString("en-GB", { month: "short" }) : ""} – ${l.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`; }
+  else if (kind === "month") { s.setDate(1); e = new Date(s); e.setMonth(s.getMonth() + 1); ps = new Date(s); ps.setMonth(s.getMonth() - 1); bucket = "day";
+    label = s.toLocaleDateString("en-GB", { month: "long", year: "numeric" }); }
+  else { s.setMonth(0, 1); e = new Date(s); e.setFullYear(s.getFullYear() + 1); ps = new Date(s); ps.setFullYear(s.getFullYear() - 1); bucket = "month"; label = String(s.getFullYear()); }
+  const buckets = [];
+  for (let d = new Date(s); d < e;) { buckets.push(new Date(d)); if (bucket === "hour") d.setHours(d.getHours() + 1); else if (bucket === "day") d.setDate(d.getDate() + 1); else d.setMonth(d.getMonth() + 1); }
+  const prevName = kind === "day" ? "the day before" : kind === "week" ? "the week before" : kind === "month" ? ps.toLocaleDateString("en-GB", { month: "long" }) : String(ps.getFullYear());
+  return { s, e, ps, bucket, label, buckets, prevName };
+}
+function hxShift(dir) {
+  const a = new Date(HX.anchor);
+  if (HX.kind === "day") a.setDate(a.getDate() + dir); else if (HX.kind === "week") a.setDate(a.getDate() + 7 * dir);
+  else if (HX.kind === "month") { a.setDate(1); a.setMonth(a.getMonth() + dir); } else a.setFullYear(a.getFullYear() + dir);
+  HX.anchor = a; hxLoad();
+}
+
+function hxDemo(R) {
+  const seed = i => (Math.sin(i * 12.9898) * 43758.5453) % 1, rnd = i => Math.abs(seed(i));
+  const at = d => d.getTime(), now = Date.now();
+  const kwh = [], eur = [], ser = Object.fromEntries(Object.keys(HXS).concat(["hum_kitchen", "hum_bathroom", "hum_bedroom", "co2_kitchen", "co2_bathroom", "co2_bedroom"]).map(k => [k, []]));
+  R.buckets.forEach((b, i) => {
+    if (at(b) > now) return;
+    const per = R.bucket === "hour" ? 1 : R.bucket === "day" ? 24 : 24 * 30, hr = b.getHours(), m = b.getMonth();
+    const cold = R.bucket === "month" ? [1, .9, .7, .4, .15, .05, .03, .03, .1, .35, .7, .95][m] : .55;
+    const base = R.bucket === "hour" ? (hr >= 4 && hr < 8 ? 2.4 : hr >= 22 || hr < 4 ? .3 : .9) : per * .9 * cold * (.7 + rnd(i) * .6);
+    const k = +(base * (R.bucket === "hour" ? .9 + rnd(i) * .3 : 1)).toFixed(2);
+    kwh.push([at(b), k]); eur.push([at(b), +(k * .4176).toFixed(2)]);
+    const out = R.bucket === "month" ? [0, 2, 6, 11, 15, 19, 21, 20, 16, 11, 5, 1][m] : R.bucket === "hour" ? 6 + 4 * Math.sin((hr - 9) / 24 * 2 * Math.PI) : 8 + 4 * Math.sin(i / 3);
+    ser.out.push([at(b), +out.toFixed(1), +(out - 3).toFixed(1), +(out + 3).toFixed(1)]);
+    for (const [key, base2] of [["air_kitchen", 20.2], ["air_bathroom", 20.1], ["air_bedroom", 18.3], ["floor_living_room", 23.5], ["floor_kitchen", 22.4], ["floor_hall", 22.8], ["floor_bathroom", 24.6], ["floor_bedroom", 21.2]]) {
+      const v = base2 + (R.bucket === "hour" ? (hr >= 22 || hr < 5 ? -1.2 : hr < 8 ? -.4 : 0) : (rnd(i + key.length) - .5) * .8);
+      ser[key].push([at(b), +v.toFixed(1), +(v - .5).toFixed(1), +(v + .5).toFixed(1)]);
+    }
+    for (const [key, h, c] of [["kitchen", 58, 1500], ["bathroom", 55, 900], ["bedroom", 52, 1100]]) {
+      ser["hum_" + key].push([at(b), +(h + (rnd(i * 3 + h) - .5) * 8).toFixed(0)]);
+      ser["co2_" + key].push([at(b), Math.round(c * (R.bucket === "hour" && hr >= 0 && hr < 7 && key === "bedroom" ? 1.4 : .8 + rnd(i * 7 + c) * .5))]);
+    }
+  });
+  const pk = kwh.reduce((a, x) => a + x[1], 0) * (.8 + rnd(7) * .4);
+  return { kwh, eur, prev: { kwh: +pk.toFixed(1), eur: +(pk * .4176).toFixed(1), has: true }, series: ser, price: .4176 };
+}
+
+async function hxLoad() {
+  const R = hxRange(), id = ++HX.req;
+  $("#hx-label").textContent = R.label;
+  $("#hx-next").disabled = R.e > new Date();
+  document.querySelectorAll("#hx-seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.hx === HX.kind));
+  $("#v-insights").classList.add("hx-loading");
+  let d = null;
+  if (!live) d = hxDemo(R);
+  else {
+    const q = new URLSearchParams({ start: R.s.toISOString(), end: R.e.toISOString(), pstart: R.ps.toISOString(), bucket: R.bucket });
+    d = await fetch("api/history?" + q).then(r => r.ok ? r.json() : null).catch(() => null);
+  }
+  if (id !== HX.req) return;
+  HX.data = d; HX.range = R;
+  $("#v-insights").classList.remove("hx-loading");
+  hxRender();
+}
+
+function hxRender() {
+  const R = HX.range, d = HX.data;
+  if (!R || !$("#hx-kpis")) return;
+  if (!d) { $("#hx-kpis").innerHTML = ""; ["#hx-energy", "#hx-temp", "#hx-air"].forEach(s => $(s).innerHTML = `<p class="hx-empty">Couldn't load the history just now.</p>`); return; }
+  const idx = new Map(R.buckets.map((b, i) => [b.getTime(), i]));
+  const put = rows => { const a = Array(R.buckets.length).fill(null); for (const [t, ...v] of rows || []) { const i = idx.get(t); if (i !== undefined) a[i] = v.length === 1 ? v[0] : v; } return a; };
+  const kwh = put(d.kwh), eurRaw = put(d.eur), price = d.price || price0();
+  const est = kwh.map((k, i) => k != null && eurRaw[i] == null);
+  const eur = kwh.map((k, i) => eurRaw[i] ?? (k != null && price ? k * price : null));
+  const tk = kwh.reduce((a, v) => a + (v || 0), 0), te = eur.reduce((a, v) => a + (v || 0), 0), anyEst = est.some(Boolean);
+  const out = put(d.series.out), outMeans = out.filter(Boolean).map(v => v[0]).filter(v => v != null);
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  const inside = ["air_kitchen", "air_bathroom", "air_bedroom"].flatMap(k => put(d.series[k]).filter(Boolean).map(v => v[0])).filter(v => v != null);
+  const days = R.bucket === "hour" ? 1 : R.bucket === "day" ? kwh.filter(v => v != null).length : null;
+  const fmtE = v => v >= 100 ? Math.round(v).toLocaleString("en-GB") : v.toFixed(v >= 10 ? 1 : 2);
+  const cmp = (cur, prev, unit) => !d.prev?.has || !prev ? "" : R.e > new Date()
+    ? `${unit === "€" ? "€ " + fmtE(prev) : fmtE(prev) + " kWh"} in ${R.prevName}`
+    : `<span class="${cur > prev ? "up" : "down"}">${cur > prev ? "▲" : "▼"} ${Math.abs(Math.round((cur - prev) / prev * 100))}%</span> vs ${R.prevName}`;
+  $("#hx-kpis").innerHTML = [
+    ["Electricity", tk ? `${fmtE(tk)}<small> kWh</small>` : "–", cmp(tk, d.prev?.kwh, "kWh")],
+    ["Cost", te ? `${anyEst ? "≈ " : ""}€ ${fmtE(te)}` : "–", cmp(te, d.prev?.eur, "€")],
+    ["Outside", outMeans.length ? `${t1(avg(outMeans))}<small> °C</small>` : "–", outMeans.length ? `low ${Math.round(Math.min(...out.filter(Boolean).map(v => v[1] ?? v[0])))}° · high ${Math.round(Math.max(...out.filter(Boolean).map(v => v[2] ?? v[0])))}°` : "average"],
+    days && te ? ["Per day", `€ ${(te / days).toFixed(2)}`, `${fmtE(tk / days)} kWh a day`] : ["Inside", inside.length ? `${t1(avg(inside))}<small> °C</small>` : "–", "average, rooms with a sensor"],
+  ].map(([l, v, sub]) => `<div class="stat"><span>${l}</span><b class="num">${v}</b><em>${sub || "&nbsp;"}</em></div>`).join("");
+  $("#hx-e-note").textContent = anyEst ? "≈ before Sept: kWh × current price" : "smart meter, a day behind";
+  hxChart($("#hx-energy"), R, {
+    bars: { vals: kwh, est, unit: "kWh", color: "var(--ember)" },
+    lines: [{ key: "out", vals: out.map(v => v && v[0]), band: out.map(v => v && [v[1], v[2]]), color: "var(--s-out)", name: "Outside", unit: "°C", right: true }],
+    tip: i => [kwh[i] != null ? `<b>${fmtE(kwh[i])} kWh</b> · ${est[i] ? "≈ " : ""}€ ${(eur[i] || 0).toFixed(2)}` : "No meter data", out[i] ? `<i style="background:var(--s-out)"></i>Outside ${t1(out[i][0])}°` : ""],
+  });
+  // temperatures
+  $("#hx-tchips").innerHTML = Object.entries(HXS).map(([k, [n, c, floor]]) => `<button class="chip${floor ? " floor" : ""}" data-hxt="${k}" aria-pressed="${HX.tsel.has(k)}"><i style="background:${c}"></i>${n}</button>`).join("");
+  const tl = [...HX.tsel].map(k => ({ key: k, vals: put(d.series[k]).map(v => v && v[0]), band: k === "out" ? put(d.series.out).map(v => v && [v[1], v[2]]) : null, color: HXS[k][1], name: HXS[k][0], dashed: !!HXS[k][2], unit: "°C" }));
+  hxChart($("#hx-temp"), R, { lines: tl, tip: i => tl.map(l => l.vals[i] != null ? `<i style="background:${l.color}"></i>${l.name} ${t1(l.vals[i])}°` : "") });
+  // air
+  const ak = HX.air === "co2" ? "co2" : "hum";
+  document.querySelectorAll("#hx-air-seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.hxair === ak));
+  const al = Object.entries(HXA).map(([r, [n, c]]) => ({ key: r, vals: put(d.series[`${ak}_${r}`]).map(v => Array.isArray(v) ? v[0] : v), color: c, name: n, unit: ak === "co2" ? "ppm" : "%" }));
+  hxChart($("#hx-air"), R, { lines: al, threshold: ak === "co2" ? [1400, "Air it"] : null, fixed: ak === "hum" ? [20, 80] : null,
+    tip: i => al.map(l => l.vals[i] != null ? `<i style="background:${l.color}"></i>${l.name} ${Math.round(l.vals[i])}${ak === "co2" ? " ppm" : " %"}` : "") });
+  $("#hx-air-legend").innerHTML = al.map(l => `<span><i style="background:${l.color}"></i>${l.name}</span>`).join("");
+}
+function price0() { const p = parseFloat(st(E.price)); return isNaN(p) ? null : p; }
+
+// one chart: optional bars (left axis), lines (left axis, or right axis for bars + line), hover/tap inspector
+function hxChart(el, R, o) {
+  const W = Math.max(280, el.clientWidth || 600), H = Math.round(Math.min(260, Math.max(180, W * .38)));
+  const padL = 34, padR = o.bars && o.lines?.length ? 34 : 10, top = 24, bot = 26, iw = W - padL - padR, ih = H - top - bot, n = R.buckets.length, bw = iw / n;
+  const x = i => padL + i * bw + bw / 2;
+  const nice = (lo, hi, count = 4) => { if (!(hi > lo)) { hi = lo + 1; } const span = hi - lo, raw = span / count, mag = 10 ** Math.floor(Math.log10(raw)), st0 = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) || raw; const a = Math.floor(lo / st0) * st0, b = Math.ceil(hi / st0) * st0; const t = []; for (let v = a; v <= b + 1e-9; v += st0) t.push(+v.toFixed(6)); return { a, b, t }; };
+  let svg = "";
+  // left axis
+  let L = null, Rr = null;
+  if (o.bars) { const mx = Math.max(0, ...o.bars.vals.map(v => v || 0)); L = nice(0, mx || 1); }
+  const lineVals = (o.lines || []).flatMap(l => l.vals.concat((l.band || []).flatMap(b => b || []))).filter(v => v != null);
+  if (lineVals.length) { const lo = o.fixed ? Math.min(o.fixed[0], ...lineVals) : Math.min(...lineVals), hi = o.fixed ? Math.max(o.fixed[1], ...lineVals) : Math.max(...lineVals, o.threshold ? o.threshold[0] * 1.05 : -Infinity); const ax = nice(lo - (hi - lo) * .08, hi + (hi - lo) * .08); if (o.bars) Rr = ax; else L = ax; }
+  const yL = v => top + ih - (v - L.a) / (L.b - L.a) * ih, yR = v => top + ih - (v - Rr.a) / (Rr.b - Rr.a) * ih;
+  if (!L) { el.innerHTML = `<p class="hx-empty">No data for this period yet.</p>`; return; }
+  for (const v of L.t) svg += `<line class="gl" x1="${padL}" x2="${W - padR}" y1="${yL(v).toFixed(1)}" y2="${yL(v).toFixed(1)}"/><text class="ax" x="${padL - 6}" y="${(yL(v) + 3.5).toFixed(1)}" text-anchor="end">${o.bars ? (v >= 10 ? Math.round(v) : +v.toFixed(1)) : Math.round(v)}</text>`;
+  if (Rr) svg += `<text class="ax unit" x="${W - padR + 6}" y="${top - 12}">°C</text>`;
+  if (Rr) for (const v of Rr.t) svg += `<text class="ax" x="${W - padR + 6}" y="${(yR(v) + 3.5).toFixed(1)}">${Math.round(v)}</text>`;
+  svg += `<text class="ax unit" x="${padL - 6}" y="${top - 12}" text-anchor="end">${o.bars ? "kWh" : o.lines?.[0]?.unit || ""}</text>`;
+  if (o.threshold) { const y = yL(o.threshold[0]); svg += `<line class="thr" x1="${padL}" x2="${W - padR}" y1="${y}" y2="${y}"/><text class="ax thr-t" x="${W - padR - 2}" y="${y - 4}" text-anchor="end">${o.threshold[1]} · ${o.threshold[0]}</text>`; }
+  // x labels
+  const lab = i => { const b = R.buckets[i]; return R.bucket === "hour" ? (b.getHours() % 6 === 0 ? String(b.getHours()).padStart(2, "0") : "") :
+    HX.kind === "week" ? b.toLocaleDateString("en-GB", { weekday: "short" }) : R.bucket === "day" ? ([1, 8, 15, 22, 29].includes(b.getDate()) ? String(b.getDate()) : "") :
+    b.toLocaleDateString("en-GB", { month: W < 520 ? "narrow" : "short" }); };
+  for (let i = 0; i < n; i++) { const t = lab(i); if (t) svg += `<text class="ax" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${t}</text>`; }
+  // bars
+  if (o.bars) o.bars.vals.forEach((v, i) => { if (v == null) return; const h = Math.max(1.5, yL(0) - yL(v)), w = Math.max(2, Math.min(bw * .64, 28));
+    svg += `<rect class="bar${o.bars.est?.[i] ? " est" : ""}" x="${(x(i) - w / 2).toFixed(1)}" y="${(yL(0) - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(4, w / 3).toFixed(1)}"/>`; });
+  // lines
+  const Y = o.bars ? yR : yL;
+  for (const l of o.lines || []) {
+    if (l.band) { const pts = l.band.map((b, i) => b && b[0] != null && b[1] != null ? [x(i), Y(b[0]), Y(b[1])] : null); let seg = [];
+      const flush = () => { if (seg.length > 1) svg += `<path class="band" style="fill:${l.color}" d="M${seg.map(p => `${p[0].toFixed(1)} ${p[2].toFixed(1)}`).join("L")}L${seg.slice().reverse().map(p => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("L")}Z"/>`; seg = []; };
+      pts.forEach(p => p ? seg.push(p) : flush()); flush(); }
+    let dpath = "", pen = false;
+    l.vals.forEach((v, i) => { if (v == null) { pen = false; return; } dpath += `${pen ? "L" : "M"}${x(i).toFixed(1)} ${Y(v).toFixed(1)}`; pen = true; });
+    const single = l.vals.filter(v => v != null).length === 1;
+    svg += single ? l.vals.map((v, i) => v == null ? "" : `<circle cx="${x(i)}" cy="${Y(v)}" r="3" style="fill:${l.color}"/>`).join("") : `<path class="ln${l.dashed ? " dash" : ""}" style="stroke:${l.color}" d="${dpath}"/>`;
+  }
+  el.innerHTML = `<svg class="hx-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${R.label}">${svg}<line class="cur" x1="0" x2="0" y1="${top}" y2="${top + ih}" visibility="hidden"/><rect class="hit" x="${padL}" y="0" width="${iw}" height="${H}"/></svg><div class="hx-tip" hidden></div>`;
+  const s = el.querySelector("svg"), tip = el.querySelector(".hx-tip"), cur = el.querySelector(".cur");
+  const fmtB = b => R.bucket === "hour" ? `${b.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, ${String(b.getHours()).padStart(2, "0")}:00` : R.bucket === "day" ? b.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : b.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const show = e => { const r = s.getBoundingClientRect(), px = (e.clientX - r.left) * (W / r.width), i = Math.max(0, Math.min(n - 1, Math.floor((px - padL) / bw)));
+    const lines = o.tip(i).filter(Boolean); if (!lines.length) return hide();
+    cur.setAttribute("x1", x(i)); cur.setAttribute("x2", x(i)); cur.setAttribute("visibility", "visible");
+    tip.innerHTML = `<span>${fmtB(R.buckets[i])}</span>${lines.map(t => `<div>${t}</div>`).join("")}`; tip.hidden = false;
+    const left = x(i) / W * r.width; tip.style.left = `${Math.min(Math.max(left, 70), r.width - 70)}px`; };
+  const hide = () => { tip.hidden = true; cur.setAttribute("visibility", "hidden"); };
+  s.addEventListener("pointermove", show); s.addEventListener("pointerdown", show); s.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") hide(); });
+}
+let hxRz; addEventListener("resize", () => { clearTimeout(hxRz); hxRz = setTimeout(() => currentTab === "insights" && hxRender(), 160); });
+
 /* ---------- navigation ---------- */
 function navHTML() { return NAV.map(([k, l, p]) => `<button class="nav" data-tab="${k}" aria-current="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg><span>${l}</span></button>`).join(""); }
 $("#tab-nav").innerHTML = navHTML(); $("#rail-nav").innerHTML = navHTML();
@@ -1045,6 +1237,7 @@ function go(tab) {
   document.querySelectorAll(".nav").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
   document.querySelectorAll(".view").forEach(v => v.hidden = v.id !== "v-" + tab);
   lsSet("tab", tab); window.scrollTo(0, 0); render();
+  if (tab === "insights") hxLoad();
 }
 
 /* ---------- interaction ---------- */
@@ -1052,6 +1245,11 @@ document.addEventListener("click", async e => {
   const t = e.target.closest("button,[data-room]");
   if (!t) { if (e.target === $("#sheet")) $("#sheet").close(); return; }
   if (t.dataset.tab) return go(t.dataset.tab);
+  if (t.dataset.hx) { HX.kind = t.dataset.hx; lsSet("hx.kind", HX.kind); HX.anchor = new Date(); return hxLoad(); }
+  if (t.id === "hx-prev") return hxShift(-1);
+  if (t.id === "hx-next") return hxShift(1);
+  if (t.dataset.hxt) { const k = t.dataset.hxt; HX.tsel.has(k) ? HX.tsel.delete(k) : HX.tsel.add(k); if (!HX.tsel.size) HX.tsel.add("out"); lsSet("hx.t", [...HX.tsel].join(",")); return hxRender(); }
+  if (t.dataset.hxair) { HX.air = t.dataset.hxair; lsSet("hx.air", HX.air); return hxRender(); }
   if (t.dataset.themePick) { setTheme(t.dataset.themePick); return renderSettings(); }
   if (t.hasAttribute("data-close")) { $("#sheet").close(); }
   if (t.dataset.go) return go(t.dataset.go);
