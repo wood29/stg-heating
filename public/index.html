@@ -116,6 +116,8 @@ h1{font-size:26px;line-height:1.15;font-weight:600;letter-spacing:-.025em;margin
 h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
 .sub{color:var(--ink-2);margin:6px 0 0;max-width:58ch}
 .card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:18px}
+.card.flat{padding:8px 8px 14px}
+.card.flat .legend{padding:0 10px}
 .card-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px}
 .link{border:0;background:none;color:var(--ink-2);font-size:13.5px;font-weight:500;padding:6px 0;min-height:36px}
 .link:hover{color:var(--ink)}
@@ -257,6 +259,23 @@ input.time{width:auto;min-width:112px;font-variant-numeric:tabular-nums}
 .stepper{display:flex;align-items:center;gap:6px;background:var(--chip);border-radius:999px;padding:4px}
 .stepper button{width:44px;height:44px;border-radius:50%;border:0;background:var(--card);font-size:20px;font-weight:400;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .stepper output{min-width:64px;text-align:center;font-size:16px;font-weight:500}
+.stepper.sm{gap:2px;padding:3px}.stepper.sm button{width:36px;height:36px;font-size:18px}.stepper.sm output{min-width:50px;font-size:15px}
+.dn-head{display:grid;grid-template-columns:minmax(0,1fr) 128px 128px;gap:8px;font-size:12px;color:var(--ink-3);padding:0 0 8px}
+.dn-head span{text-align:center}
+.dn{display:grid;grid-template-columns:minmax(0,1fr) 128px 128px;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.dn b{font-weight:500}.dn p{margin:2px 0 0;font-size:12px;color:var(--ink-3)}
+.dn .stepper{justify-self:center}
+@media (max-width:520px){.dn-head{grid-template-columns:1fr 1fr}.dn-head span:first-child{display:none}.dn{grid-template-columns:1fr 1fr;row-gap:8px}.dn>div:first-child{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline}.dn p{margin:0}}
+.today .bar{position:relative;height:12px;border-radius:999px;background:var(--chip);overflow:hidden;margin:6px 0 8px}
+.today .bar i{position:absolute;top:0;bottom:0}
+.today .bar .n{background:color-mix(in srgb,var(--lake) 42%,transparent)} .today .bar .w{background:color-mix(in srgb,var(--ember) 45%,transparent)}
+.today .now{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);border-radius:2px}
+.today .ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3)}
+.today .keys{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.today .keys div{font-size:12px;color:var(--ink-2)}.today .keys b{display:block;font-size:17px;font-weight:500;color:var(--ink);margin-top:2px}
+.today .keys i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px}
+.today .bar-wrap{position:relative}
+.today .keys .kn{background:color-mix(in srgb,var(--lake) 42%,transparent)} .today .keys .kw{background:color-mix(in srgb,var(--ember) 45%,transparent)} .today .keys .kd{background:var(--line)}
 .kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 14px;font-size:14px;margin:0}
 .kv dt{color:var(--ink-2)} .kv dd{margin:0;text-align:right}
 .note{font-size:13px;color:var(--ink-2);margin:0}
@@ -287,13 +306,22 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
 .g-home{display:flex;flex-direction:column;gap:14px}
 .g-two,.g-rooms{display:flex;flex-direction:column;gap:14px}
 @media (min-width:760px){
-  .g-home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"hero plan" "ctrl plan" "stay who";gap:16px;align-items:start}
+  .g-home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"hero plan" "ctrl plan" "today who" "stay who";gap:16px;align-items:start}
   .temp{font-size:96px}
-  .g-rooms{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;align-items:start}
+  .g-rooms .card.flat{padding:14px 18px 16px}
+  .rooms-card{background:none;box-shadow:none;padding:0}
+  .rooms{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+  .rooms .room{grid-template-columns:1fr;grid-template-areas:"n" "t" "m";align-content:space-between;gap:10px;background:var(--card);box-shadow:var(--shadow);border-radius:18px;border-top:0;padding:16px 16px 14px;min-height:140px;transition:transform .15s ease}
+  .rooms .room:hover{transform:translateY(-1px)}
+  .rooms .room b{grid-area:n} .rooms .room .meta{grid-area:m;grid-column:auto}
+  .rooms .room .t{grid-area:t;grid-row:auto;grid-column:auto;text-align:left;font-size:clamp(28px,3.4vw,40px);line-height:1}
+  .rooms .room .meta{font-size:12.5px}
+  .rooms .room .t small{display:none}
   .g-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
   .stats{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
 @media (min-width:1180px){
+  .g-rooms #m3d-rooms{max-width:min(100%,calc((100vh - 360px) * 1.63));margin:0 auto}
   .g-home{grid-template-columns:minmax(0,.9fr) minmax(0,1.35fr)}
   .temp{font-size:112px}
 }
@@ -330,6 +358,7 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
               <button class="pill" id="p-frost" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20M4 6l16 12M20 6L4 18"/></svg>Frost only</button>
             </div>
           </div>
+          <div style="grid-area:today" class="card today" id="today" hidden></div>
           <div style="grid-area:plan" class="card">
             <div class="card-h"><h2>Rooms</h2><button class="link" data-go="rooms">All rooms</button></div>
             <div class="plan mini"><div class="m3d" id="m3d-home"><div class="m3d-labels"></div></div><svg id="plan-home" role="img" aria-label="Floor plan of the flat with room temperatures"></svg></div>
@@ -350,9 +379,9 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
     <section class="view" id="v-rooms" hidden aria-label="Rooms">
       <div class="page-h"><div class="eyebrow">Rooms</div><h1>The flat, room by room</h1></div>
       <div class="g-rooms">
-        <div class="card"><div class="plan"><div class="m3d" id="m3d-rooms"><div class="m3d-labels"></div></div><svg id="plan-rooms" role="img" aria-label="Floor plan; tap a room to change it"></svg></div>
-          <div class="legend" aria-hidden="true"><span><i style="background:var(--f-hot)"></i>Heating</span><span><i style="background:var(--f-ok)"></i>Comfortable</span><span><i style="background:var(--f-low)"></i>Lowered</span><span><i style="background:var(--f-neutral)"></i>No floor heating</span></div></div>
-        <div class="card"><div class="rooms" id="rooms"></div></div>
+        <div class="card flat"><div class="plan"><div class="m3d" id="m3d-rooms"><div class="m3d-labels"></div></div><svg id="plan-rooms" role="img" aria-label="Floor plan; tap a room to change it"></svg></div>
+          <div class="legend" aria-hidden="true"><span><i style="background:var(--f-hot)"></i>Heating</span><span><i style="background:var(--f-ok)"></i>Comfortable</span><span><i style="background:var(--f-low)"></i>Lowered</span></div></div>
+        <div class="card rooms-card"><div class="rooms" id="rooms"></div></div>
       </div>
     </section>
 
@@ -404,7 +433,7 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
       <div class="g-two">
         <div class="card" id="settings"></div>
         <div class="stack">
-          <div class="card"><div class="card-h"><h2>Day temperature</h2></div><div id="comfort"></div></div>
+          <div class="card"><div class="card-h"><h2>Temperatures</h2></div><div id="comfort"></div></div>
           <div class="card"><div class="card-h"><h2>Night</h2></div><div id="night"></div></div>
           <div class="card"><div class="setting" style="display:block"><div style="margin-bottom:12px"><b>Appearance</b><p>Auto follows this device's light or dark setting.</p></div><div class="seg seg3" role="group" aria-label="Appearance" id="theme-seg"></div></div></div>
           <div class="card"><div class="setting"><div><b>Open-window detection</b><p>A thermostat pauses when the room cools quickly, e.g. while airing.</p></div><label class="switch"><input type="checkbox" id="set-window" aria-label="Open-window detection"><span></span></label></div></div>
@@ -723,7 +752,23 @@ function situation() {
   return [m || "…", "ok", "", ""];
 }
 
+function renderToday() {
+  const el = $("#today"); if (!el) return;
+  const on = st(E.nightEn) === "on" && st(E.nStart) && st(E.nEnd);
+  el.hidden = !on; if (!on) return;
+  const mins = v => { const [h, m] = (v || "0:0").split(":").map(Number); return h * 60 + m; };
+  const ns = mins(st(E.nStart)), ne = mins(st(E.nEnd));
+  const wd = st(E.wakeStart) ? new Date(st(E.wakeStart)) : null, wk = wd ? wd.getHours() * 60 + wd.getMinutes() : ne;
+  const now = new Date(), nm = now.getHours() * 60 + now.getMinutes();
+  const pct = m => (m / 1440 * 100).toFixed(2) + "%";
+  const seg = (a, b, c) => a <= b ? `<i class="${c}" style="left:${pct(a)};width:${pct(b - a)}"></i>` : `<i class="${c}" style="left:${pct(a)};width:${pct(1440 - a)}"></i><i class="${c}" style="left:0;width:${pct(b)}"></i>`;
+  el.innerHTML = `<div class="card-h"><h2>Today</h2><button class="link" data-go="settings">Night</button></div>
+    <div class="bar-wrap"><div class="bar">${seg(ns, wk, "n")}${seg(wk, ne, "w")}</div><span class="now" style="left:${pct(nm)}" aria-hidden="true"></span></div>
+    <div class="ticks"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+    <div class="keys"><div><i class="kn"></i>Night from<b class="num">${hm(st(E.nStart))}</b></div><div><i class="kw"></i>Warm-up<b class="num">${wd ? fmtT(wd) : "–"}</b></div><div><i class="kd"></i>Warm by<b class="num">${hm(st(E.nEnd))}</b></div></div>`;
+}
 function renderHome() {
+  renderToday();
   const rs = ROOMS.map(([r]) => room(r)).filter(x => typeof x.cur === "number");
   const avg = rs.reduce((a, x) => a + x.cur, 0) / (rs.length || 1);
   $("#h-temp").innerHTML = rs.length ? `${t1(avg)}<sup>°C</sup>` : "–";
@@ -779,7 +824,7 @@ function renderRooms() {
   renderPlan($("#plan-rooms"), planLook());
   $("#rooms").innerHTML = ROOMS.map(([r]) => {
     const x = room(r);
-    return `<button class="room" data-room="${r}"><b>${x.name}</b><span class="meta"><i class="dot ${x.state}"></i>${x.text}${x.online ? ` · set to ${t1(x.tgt)}°` : ""}</span><span class="t num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}<small>now</small></span></button>`;
+    return `<button class="room" data-room="${r}"><b>${x.name}</b><span class="meta"><i class="dot ${x.state}"></i>${x.text}${x.online ? ` · ${t1(x.tgt)}°` : ""}</span><span class="t num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}<small>now</small></span></button>`;
   }).join("");
 }
 
@@ -862,12 +907,12 @@ function renderSettings() {
   if (document.activeElement?.closest?.("#settings,#comfort,#night")) return;
   $("#settings").innerHTML = SETTINGS.map(([id, l, d, mi, ma, s, u], i) => `<div class="setting"><div><b>${l}</b><p>${d}</p></div><output class="num" id="o${i}">${num(id)} ${u}</output><input type="range" id="s${i}" aria-label="${l}" min="${mi}" max="${ma}" step="${s}" value="${num(id)}" data-set="${i}"></div>`).join("") +
     `<div class="setting"><div><b>Electricity price</b><p>From your income and expense app.</p></div><output class="num">${price() ? price().toFixed(4) : "–"} €/kWh</output></div>`;
-  $("#comfort").innerHTML = ROOMS.map(([r, n]) => `<div class="setting"><b>${n}</b><div class="stepper"><button aria-label="${n} comfort cooler" data-comfort="-0.5" data-room="${r}">−</button><output class="num">${t1(num(E.comfort(r)))}°</output><button aria-label="${n} comfort warmer" data-comfort="0.5" data-room="${r}">+</button></div></div>`).join("");
+  const stp = (r, n, kind, v) => `<div class="stepper sm"><button aria-label="${n} ${kind} cooler" data-${kind === "day" ? "comfort" : "night"}="-0.5" data-room="${r}">−</button><output class="num">${t1(v)}°</output><button aria-label="${n} ${kind} warmer" data-${kind === "day" ? "comfort" : "night"}="0.5" data-room="${r}">+</button></div>`;
+  $("#comfort").innerHTML = `<div class="dn-head"><span></span><span>Day</span><span>Night</span></div>` + ROOMS.map(([r, n]) => `<div class="dn"><div><b>${n}</b><p>Warms ${t1(num(E.rateR(r), .5))} °C/h</p></div>${stp(r, n, "day", num(E.comfort(r)))}${stp(r, n, "night", num(E.night(r), 18))}</div>`).join("");
   const w = st(E.wakeStart), en = st(E.nightEn) !== "off";
   $("#night").innerHTML = `<div class="setting"><div><b>Night temperatures</b><p>During a stay, from night start until the morning warm-up.</p></div><label class="switch"><input type="checkbox" id="n-en" aria-label="Night temperatures" ${en ? "checked" : ""}><span></span></label></div>
     <div class="setting"><div><b>Night starts</b></div><input type="time" class="time" id="n-start" value="${hm(st(E.nStart))}" aria-label="Night starts"></div>
-    <div class="setting"><div><b>Warm by</b><p>${w ? `Tonight the floors start warming at <b class="num">${fmtT(new Date(w))}</b>, worked out from each room's temperature and how fast it warms up.` : "When you get up."}</p></div><input type="time" class="time" id="n-end" value="${hm(st(E.nEnd))}" aria-label="Warm by"></div>` +
-    ROOMS.map(([r, n]) => `<div class="setting"><div><b>${n}</b><p>Warms ${t1(num(E.rateR(r), .5))} °C/h</p></div><div class="stepper"><button aria-label="${n} night cooler" data-night="-0.5" data-room="${r}">−</button><output class="num">${t1(num(E.night(r), 18))}°</output><button aria-label="${n} night warmer" data-night="0.5" data-room="${r}">+</button></div></div>`).join("");
+    <div class="setting"><div><b>Warm by</b><p>${w ? `Tonight the floors start warming at <b class="num">${fmtT(new Date(w))}</b>, worked out from each room's temperature and how fast it warms up.` : "When you get up."}</p></div><input type="time" class="time" id="n-end" value="${hm(st(E.nEnd))}" aria-label="Warm by"></div>`;
   const th = lsGet("theme") || "auto";
   $("#theme-seg").innerHTML = [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => `<button data-theme-pick="${v}" aria-pressed="${th === v}">${l}</button>`).join("");
   const ws = windowSwitches(); $("#set-window").checked = ws.length ? ws.every(s => s.state === "on") : true;
