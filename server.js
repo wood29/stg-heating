@@ -36,7 +36,7 @@ const RELEVANT = [
   new RegExp(`^sensor\\.${R}_floor_temperature$`),
   /^person\.(mike|irene|oli)$/,
   /^input_(select|text|datetime|boolean|number)\.stg_/,
-  /^sensor\.stg_/, /^sensor\.indoor_stg_/, /^binary_sensor\.stg_(stay_active|night)$/, /^timer\.stg_heating_boost$/, /^zone\.home$/,
+  /^sensor\.stg_/, /^sensor\.indoor_stg_/, /^weather\.forecast_home$/, /^binary_sensor\.stg_(stay_active|night)$/, /^timer\.stg_heating_boost$/, /^zone\.home$/,
 ];
 const isWindowSwitch = s => s.entity_id.startsWith("switch.") && / Floor Heating Switch Window detection$/.test(s.attributes?.friendly_name || "");
 const relevant = s => s && (s.entity_id === PRICE_SENSOR || RELEVANT.some(r => r.test(s.entity_id)) || isWindowSwitch(s));
@@ -182,6 +182,21 @@ async function costs() {
   };
 }
 
+// Weather forecast (met.no via Home Assistant): daily and hourly, cached for 20 minutes.
+const WEATHER = process.env.WEATHER_ENTITY || "weather.forecast_home";
+let wxCache = null, wxAt = 0;
+async function forecast() {
+  if (wxCache && Date.now() - wxAt < 20 * 60e3) return wxCache;
+  const get = async type => (await haSend({ type: "call_service", domain: "weather", service: "get_forecasts", service_data: { type }, target: { entity_id: WEATHER }, return_response: true }))?.response?.[WEATHER]?.forecast || [];
+  const pick = f => ({ t: f.datetime, c: f.condition, hi: f.temperature, lo: f.templow, p: f.precipitation, w: f.wind_speed, h: f.humidity });
+  const [daily, hourly] = await Promise.all([get("daily"), get("hourly")]);
+  const now = states[WEATHER];
+  wxCache = { now: now ? { c: now.state, t: now.attributes.temperature, h: now.attributes.humidity, w: now.attributes.wind_speed } : null,
+              daily: daily.slice(0, 7).map(pick), hourly: hourly.slice(0, 24).map(pick) };
+  wxAt = Date.now();
+  return wxCache;
+}
+
 const SEC = {
   "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
   "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; manifest-src 'self'",
@@ -208,6 +223,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (url.pathname === "/api/costs") return json(res, 200, await costs());
+    if (url.pathname === "/api/weather") return json(res, 200, await forecast());
     // Profile pictures of the people (Mike, Irene, Oli), fetched with the token so the browser never needs it
     const pic = url.pathname.match(/^\/api\/picture\/(person\.[a-z0-9_]+)$/);
     if (pic) {

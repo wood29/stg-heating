@@ -117,8 +117,33 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
 .sub{color:var(--ink-2);margin:6px 0 0;max-width:58ch}
 .facts{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:13.5px;color:var(--ink-2)}
 .facts:empty{display:none}.facts b{color:var(--ink);font-weight:500;font-size:15px;margin-right:4px}
-.room .air{display:block;font-size:12px;color:var(--ink-3);margin-top:3px}
-.air-warn{color:var(--warn)}
+.room .st{display:block}
+.room .air{display:block;font-size:12px;color:var(--ink-3);margin-top:2px}
+.room .air.warn{color:var(--warn)}
+.wx .src{font-size:12px;color:var(--ink-3)}
+.wxi{width:28px;height:28px;color:var(--ink-2);flex:none}
+.wxi .sun{color:var(--ember);stroke:var(--ember)} .wxi .rain{stroke:var(--lake);fill:var(--lake)}
+.wx-grid{display:grid;gap:18px}
+.wx-now{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.wx-now>.wxi{width:52px;height:52px}
+.wx-t{font-size:48px;font-weight:300;letter-spacing:-.04em;line-height:1}
+.wx-c{font-size:14px;color:var(--ink-2);margin-top:4px}
+.wx-kv{display:grid;grid-template-columns:auto auto;gap:3px 12px;margin:0 0 0 auto;font-size:13px}
+.wx-kv dt{color:var(--ink-3)} .wx-kv dd{margin:0;text-align:right;font-weight:500}
+.wx-hours{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;border-top:1px solid var(--line);padding-top:14px}
+.wx-hours::-webkit-scrollbar{display:none}
+.wx-hours div{flex:1 0 46px;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--ink-3)}
+.wx-hours b{font-size:14px;font-weight:500;color:var(--ink)} .wx-hours .wxi{width:22px;height:22px}
+.wx-days{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;border-top:1px solid var(--line);padding-top:14px}
+.wx-days div{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-2)}
+.wx-days b{font-size:15px;font-weight:500;color:var(--ink)} .wx-days em{font-style:normal;font-size:13px;color:var(--ink-3)}
+.wx-days small{font-size:11px;color:var(--lake)}
+@media (min-width:760px){
+  .wx-grid{grid-template-columns:minmax(0,1.05fr) minmax(0,1.4fr);align-items:center;column-gap:28px}
+  .wx-now{grid-row:1/3;border-right:1px solid var(--line);padding-right:24px;align-self:stretch;align-content:center;row-gap:20px}
+  .wx-kv{margin:0;width:100%}
+  .wx-hours{border-top:0;padding-top:0}
+}
 .card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:18px}
 .card.flat{padding:8px 8px 14px}
 .card.flat .legend{padding:0 10px}
@@ -310,7 +335,7 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
 .g-home{display:flex;flex-direction:column;gap:14px}
 .g-two,.g-rooms{display:flex;flex-direction:column;gap:14px}
 @media (min-width:760px){
-  .g-home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"hero plan" "ctrl plan" "today who" "stay who";gap:16px;align-items:start}
+  .g-home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"hero plan" "ctrl plan" "wx wx" "today who" "stay who";gap:16px;align-items:start}
   .temp{font-size:96px}
   .g-rooms .card.flat{padding:14px 18px 16px}
   .rooms-card{background:none;box-shadow:none;padding:0}
@@ -320,6 +345,8 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
   .rooms .room b{grid-area:n} .rooms .room .meta{grid-area:m;grid-column:auto;align-self:end}
   .rooms .room .t{grid-area:t;grid-row:auto;grid-column:auto;text-align:left;font-size:clamp(28px,3.4vw,40px);line-height:1}
   .rooms .room .meta{font-size:12.5px}
+  .rooms .room .set{display:block;color:var(--ink-3);font-size:12px;margin-top:2px}
+  .rooms .room .set .sep{display:none} .rooms .room .set:before{content:"Set to "}
   .rooms .room .t small{display:none}
   .g-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
   .stats{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -363,6 +390,7 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
               <button class="pill" id="p-frost" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20M4 6l16 12M20 6L4 18"/></svg>Frost only</button>
             </div>
           </div>
+          <div style="grid-area:wx" class="card wx" id="wx" hidden></div>
           <div style="grid-area:today" class="card today" id="today" hidden></div>
           <div style="grid-area:plan" class="card">
             <div class="card-h"><h2>Rooms</h2><button class="link" data-go="rooms">All rooms</button></div>
@@ -695,6 +723,8 @@ async function goLive() {
   es.onerror = () => { haUp = false; soon(); };
   const costs = () => fetch("api/costs").then(r => r.ok ? r.json() : null).then(d => { if (d) { costData = d; renderInsights(); renderHome(); } }).catch(() => {});
   costs(); setInterval(costs, 15 * 60e3);
+  const weather = () => fetch("api/weather").then(r => r.ok ? r.json() : null).then(d => { if (d) { wx = d; renderWeather(); } }).catch(() => {});
+  weather(); setInterval(weather, 20 * 60e3);
 }
 
 /* ---------- helpers ---------- */
@@ -728,10 +758,10 @@ function warmBy() {
   return "";
 }
 function airLine(x) {
-  const parts = [];
-  if (Number.isFinite(x.hum)) parts.push(`${Math.round(x.hum)}% humidity`);
-  if (Number.isFinite(x.co2)) parts.push(x.co2 >= 1400 ? `<span class="air-warn">CO₂ ${Math.round(x.co2).toLocaleString("en-GB")} · air it</span>` : `CO₂ ${Math.round(x.co2).toLocaleString("en-GB")}`);
-  return parts.join(" · ");
+  let out = "";
+  if (Number.isFinite(x.hum)) out += `<span class="air">${Math.round(x.hum)}% humidity</span>`;
+  if (Number.isFinite(x.co2)) out += x.co2 >= 1400 ? `<span class="air warn">CO₂ ${Math.round(x.co2).toLocaleString("en-GB")} ppm · air it</span>` : `<span class="air">CO₂ ${Math.round(x.co2).toLocaleString("en-GB")} ppm</span>`;
+  return out;
 }
 function picture(id) {
   const p = attr(id, "entity_picture");
@@ -775,6 +805,50 @@ function situation() {
   return [m || "…", "ok", "", ""];
 }
 
+/* ---------- weather ---------- */
+let wx = null;
+const WXL = { "clear-night": "Clear", cloudy: "Cloudy", fog: "Fog", hail: "Hail", lightning: "Thunder", "lightning-rainy": "Thunderstorms", partlycloudy: "Partly cloudy", pouring: "Heavy rain", rainy: "Rain", snowy: "Snow", "snowy-rainy": "Sleet", sunny: "Sunny", windy: "Windy", "windy-variant": "Windy", exceptional: "Unusual" };
+function wxIcon(c, night) {
+  const cloud = '<path d="M7.5 18.5h9.25a3.75 3.75 0 0 0 .4-7.48A5.5 5.5 0 0 0 6.6 11.6 3.5 3.5 0 0 0 7.5 18.5z"/>';
+  const sun = (x = 12, y = 12, r = 4) => `<g class="sun"><circle cx="${x}" cy="${y}" r="${r}"/>${[0, 45, 90, 135, 180, 225, 270, 315].map(a => { const t = a * Math.PI / 180, c1 = Math.cos(t), s1 = Math.sin(t); return `<path d="M${(x + c1 * (r + 2.2)).toFixed(1)} ${(y + s1 * (r + 2.2)).toFixed(1)}L${(x + c1 * (r + 4)).toFixed(1)} ${(y + s1 * (r + 4)).toFixed(1)}"/>`; }).join("")}</g>`;
+  const moon = '<path class="sun" d="M16.5 14.5A6.5 6.5 0 0 1 9.5 5a6.5 6.5 0 1 0 7 9.5z"/>';
+  const drops = n => [8.5, 12, 15.5].slice(0, n).map(x => `<path class="rain" d="M${x} 20.5l-.8 2"/>`).join("");
+  const g = {
+    sunny: sun(), "clear-night": moon,
+    partlycloudy: (night ? '<path class="sun" d="M11 7.6A3.6 3.6 0 0 1 7.2 2.8 3.8 3.8 0 1 0 11 7.6z"/>' : sun(8, 7.5, 2.8)) + cloud,
+    cloudy: cloud, fog: '<path d="M4 9h16M6 13h12M4 17h16"/>',
+    rainy: cloud + drops(3), pouring: cloud + drops(3) + '<path class="rain" d="M10.3 20.5l-.8 2M13.8 20.5l-.8 2"/>',
+    snowy: cloud + '<g class="rain"><circle cx="9" cy="21.5" r=".6"/><circle cx="12.5" cy="21.5" r=".6"/><circle cx="16" cy="21.5" r=".6"/></g>',
+    "snowy-rainy": cloud + '<path class="rain" d="M9 20.5l-.8 2"/><circle class="rain" cx="13" cy="21.5" r=".6"/><path class="rain" d="M16 20.5l-.8 2"/>',
+    lightning: cloud + '<path class="sun" d="M12.5 15l-2 3.5h3l-2 3.5"/>', "lightning-rainy": cloud + '<path class="sun" d="M12.5 15l-2 3.5h3l-2 3.5"/>' + drops(1),
+    hail: cloud + '<g class="rain"><circle cx="9" cy="21.5" r=".8"/><circle cx="15" cy="21.5" r=".8"/></g>',
+    windy: '<path d="M3 9h11a3 3 0 1 0-3-3M3 13h15a3 3 0 1 1-3 3M3 17h8"/>',
+  };
+  return `<svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${g[c] || g["windy-variant"] || cloud}</svg>`;
+}
+function demoWx() {
+  const d = n => { const x = new Date(); x.setDate(x.getDate() + n); x.setHours(12, 0, 0, 0); return x.toISOString(); };
+  const c = ["cloudy", "partlycloudy", "rainy", "partlycloudy", "sunny", "snowy-rainy"], hi = [9.7, 15.2, 13.3, 11.5, 7.7, 5.2], lo = [3.8, 3.3, 8.4, 6.1, 3.9, 0.4];
+  const hourly = Array.from({ length: 24 }, (_, i) => { const x = new Date(); x.setMinutes(0, 0, 0); x.setHours(x.getHours() + i + 1); return { t: x.toISOString(), c: i < 5 ? "cloudy" : i < 12 ? "clear-night" : "partlycloudy", hi: +(9 - Math.sin(i / 4) * 4).toFixed(1) }; });
+  return { now: { c: "cloudy", t: 8.9, h: 71, w: 19 }, daily: c.map((x, i) => ({ t: d(i), c: x, hi: hi[i], lo: lo[i], p: x.includes("rain") ? 2.4 : 0 })), hourly };
+}
+function renderWeather() {
+  const el = $("#wx"); if (!el) return;
+  const w = live ? wx : demoWx();
+  if (!w || !w.daily?.length) { el.hidden = true; return; }
+  el.hidden = false;
+  const out = num(E.outT, NaN), cur = Number.isFinite(out) ? out : w.now?.t, today = w.daily[0];
+  const hrs = (w.hourly || []).filter((_, i) => i % 2 === 1).slice(0, 8);
+  const isNight = t => { const h = new Date(t).getHours(); return h < 7 || h >= 19; };
+  el.innerHTML = `<div class="card-h"><h2>Weather</h2><span class="src">St. Gilgen · met.no</span></div>
+    <div class="wx-grid">
+      <div class="wx-now">${wxIcon(w.now?.c || today.c, isNight(Date.now()))}
+        <div><div class="wx-t num">${typeof cur === "number" ? Math.round(cur) + "°" : "–"}</div><div class="wx-c">${WXL[w.now?.c || today.c] || ""}</div></div>
+        <dl class="wx-kv"><dt>Today</dt><dd class="num">${Math.round(today.hi)}° / ${Math.round(today.lo)}°</dd>${w.now?.h != null ? `<dt>Humidity</dt><dd class="num">${Math.round(w.now.h)} %</dd>` : ""}${w.now?.w != null ? `<dt>Wind</dt><dd class="num">${Math.round(w.now.w)} km/h</dd>` : ""}</dl></div>
+      <div class="wx-hours" aria-label="Next hours">${hrs.map(h => `<div><span>${new Date(h.t).toLocaleTimeString("en-GB", { hour: "2-digit" })}</span>${wxIcon(h.c, isNight(h.t))}<b class="num">${Math.round(h.hi)}°</b></div>`).join("")}</div>
+      <div class="wx-days">${w.daily.slice(1, 6).map(d => `<div><span>${new Date(d.t).toLocaleDateString("en-GB", { weekday: "short" })}</span>${wxIcon(d.c)}<b class="num">${Math.round(d.hi)}°</b><em class="num">${Math.round(d.lo)}°</em>${d.p > 0.4 ? `<small class="num">${d.p.toFixed(d.p < 10 ? 1 : 0)} mm</small>` : `<small>&nbsp;</small>`}</div>`).join("")}</div>
+    </div>`;
+}
 function renderToday() {
   const el = $("#today"); if (!el) return;
   const on = st(E.nightEn) === "on" && st(E.nStart) && st(E.nEnd);
@@ -791,7 +865,7 @@ function renderToday() {
     <div class="keys"><div><i class="kn"></i>Night from<b class="num">${hm(st(E.nStart))}</b></div><div><i class="kw"></i>Warm-up<b class="num">${wd ? fmtT(wd) : "–"}</b></div><div><i class="kd"></i>Warm by<b class="num">${hm(st(E.nEnd))}</b></div></div>`;
 }
 function renderHome() {
-  renderToday();
+  renderToday(); renderWeather();
   const rs = ROOMS.map(([r]) => room(r)).filter(x => typeof x.cur === "number");
   const avg = rs.reduce((a, x) => a + x.cur, 0) / (rs.length || 1);
   $("#h-temp").innerHTML = rs.length ? `${t1(avg)}<sup>°C</sup>` : "–";
@@ -855,7 +929,7 @@ function renderRooms() {
   $("#rooms").innerHTML = ROOMS.map(([r]) => {
     const x = room(r);
     const air = airLine(x);
-    return `<button class="room" data-room="${r}"><b>${x.name}</b><span class="meta"><i class="dot ${x.state}"></i>${x.text}${x.online && !x.text.includes("warm by") ? ` · ${t1(x.tgt)}°` : ""}${air ? `<span class="air">${air}</span>` : ""}</span><span class="t num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}<small>now</small></span></button>`;
+    return `<button class="room" data-room="${r}"><b>${x.name}</b><span class="meta"><span class="st"><i class="dot ${x.state}"></i>${x.text}${x.online && !x.text.includes("warm by") ? `<span class="set"><span class="sep"> · </span>${t1(x.tgt)}°</span>` : ""}</span>${air}</span><span class="t num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}<small>now</small></span></button>`;
   }).join("");
 }
 
