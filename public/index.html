@@ -11,9 +11,11 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Seewärme">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Seewärme">
+<script>try{var t=localStorage.getItem("stg.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 <meta name="theme-color" content="#F4F3EF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0D0F12" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -133,6 +135,7 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
 
 /* segmented modes */
 .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--chip);padding:4px;border-radius:16px}
+.seg.seg3{grid-template-columns:repeat(3,1fr)}
 .seg button{border:0;background:none;border-radius:12px;min-height:44px;font-weight:500;font-size:14.5px;color:var(--ink-2)}
 .seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08),0 0 0 1px rgba(0,0,0,.03)}
 .mode-note{font-size:13px;color:var(--ink-2);margin:10px 2px 0;min-height:1.4em}
@@ -403,6 +406,7 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
         <div class="stack">
           <div class="card"><div class="card-h"><h2>Day temperature</h2></div><div id="comfort"></div></div>
           <div class="card"><div class="card-h"><h2>Night</h2></div><div id="night"></div></div>
+          <div class="card"><div class="setting" style="display:block"><div style="margin-bottom:12px"><b>Appearance</b><p>Auto follows this device's light or dark setting.</p></div><div class="seg seg3" role="group" aria-label="Appearance" id="theme-seg"></div></div></div>
           <div class="card"><div class="setting"><div><b>Open-window detection</b><p>A thermostat pauses when the room cools quickly, e.g. while airing.</p></div><label class="switch"><input type="checkbox" id="set-window" aria-label="Open-window detection"><span></span></label></div></div>
         </div>
       </div>
@@ -864,8 +868,20 @@ function renderSettings() {
     <div class="setting"><div><b>Night starts</b></div><input type="time" class="time" id="n-start" value="${hm(st(E.nStart))}" aria-label="Night starts"></div>
     <div class="setting"><div><b>Warm by</b><p>${w ? `Tonight the floors start warming at <b class="num">${fmtT(new Date(w))}</b>, worked out from each room's temperature and how fast it warms up.` : "When you get up."}</p></div><input type="time" class="time" id="n-end" value="${hm(st(E.nEnd))}" aria-label="Warm by"></div>` +
     ROOMS.map(([r, n]) => `<div class="setting"><div><b>${n}</b><p>Warms ${t1(num(E.rateR(r), .5))} °C/h</p></div><div class="stepper"><button aria-label="${n} night cooler" data-night="-0.5" data-room="${r}">−</button><output class="num">${t1(num(E.night(r), 18))}°</output><button aria-label="${n} night warmer" data-night="0.5" data-room="${r}">+</button></div></div>`).join("");
+  const th = lsGet("theme") || "auto";
+  $("#theme-seg").innerHTML = [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => `<button data-theme-pick="${v}" aria-pressed="${th === v}">${l}</button>`).join("");
   const ws = windowSwitches(); $("#set-window").checked = ws.length ? ws.every(s => s.state === "on") : true;
 }
+
+function setTheme(v) {
+  lsSet("theme", v);
+  if (v === "light" || v === "dark") document.documentElement.dataset.theme = v; else delete document.documentElement.dataset.theme;
+  const dark = v === "dark" || (v !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+  const [a, b] = document.querySelectorAll('meta[name="theme-color"]');
+  if (v === "auto") { a.content = "#F4F3EF"; a.media = "(prefers-color-scheme: light)"; b.content = "#0D0F12"; b.media = "(prefers-color-scheme: dark)"; }
+  else for (const m of [a, b]) { m.content = dark ? "#0D0F12" : "#F4F3EF"; m.removeAttribute("media"); }
+}
+setTheme(lsGet("theme") || "auto");
 
 /* ---------- navigation ---------- */
 function navHTML() { return NAV.map(([k, l, p]) => `<button class="nav" data-tab="${k}" aria-current="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg><span>${l}</span></button>`).join(""); }
@@ -884,6 +900,7 @@ document.addEventListener("click", async e => {
   const t = e.target.closest("button,[data-room]");
   if (!t) { if (e.target === $("#sheet")) $("#sheet").close(); return; }
   if (t.dataset.tab) return go(t.dataset.tab);
+  if (t.dataset.themePick) { setTheme(t.dataset.themePick); return renderSettings(); }
   if (t.hasAttribute("data-close")) { $("#sheet").close(); }
   if (t.dataset.go) return go(t.dataset.go);
   if (t.dataset.mode) { await call("input_select", "select_option", { entity_id: E.mode, option: t.dataset.mode }); return toast(`Mode: ${SEG.find(s => s[0] === t.dataset.mode)[1]}`); }

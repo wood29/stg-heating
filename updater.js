@@ -1,4 +1,4 @@
-// Self-update: every 30 minutes, look for a newer commit on GitHub (wood29/stg-heating, main).
+// Self-update: every 5 minutes, look for a newer commit on GitHub (wood29/stg-heating, main).
 // If there is one, download it, swap in the new web files and server, and restart.
 // Docker's restart policy brings the container straight back up on the new code.
 // Turn off with AUTO_UPDATE=0. Recreating the container resets to the image (which is never older).
@@ -8,7 +8,7 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 
 const REPO = "wood29/stg-heating";
-const EVERY = 30 * 60 * 1000;
+const EVERY = 5 * 60 * 1000;
 
 export function startUpdater(appDir, log = console.log) {
   if (process.env.AUTO_UPDATE === "0") return;
