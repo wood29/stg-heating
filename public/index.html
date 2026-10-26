@@ -231,7 +231,7 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
 
 /* forms */
 .field{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink-2)}
-input[type="datetime-local"],select{background:var(--chip);border:1px solid transparent;border-radius:12px;padding:12px 14px;width:100%;min-height:46px;font-size:15px}
+input[type="datetime-local"],input.time,select{background:var(--chip);border:1px solid transparent;border-radius:12px;padding:12px 14px;width:100%;min-height:46px;font-size:15px}
 .row{display:flex;align-items:center;justify-content:space-between;gap:14px}
 .setting{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
 .setting:first-child{border-top:0;padding-top:2px}
@@ -239,6 +239,7 @@ input[type="datetime-local"],select{background:var(--chip);border:1px solid tran
 .setting p{margin:0;font-size:13px;color:var(--ink-2);grid-column:1}
 .setting output{font-size:15px;font-weight:500}
 input[type="range"]{grid-column:1/-1;width:100%;accent-color:var(--ink);margin:6px 0 0;height:28px}
+input.time{width:auto;min-width:112px;font-variant-numeric:tabular-nums}
 .switch{position:relative;width:51px;height:31px;flex:none}
 .switch input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
 .switch span{position:absolute;inset:0;border-radius:999px;background:var(--line);transition:background .2s}
@@ -400,7 +401,8 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
       <div class="g-two">
         <div class="card" id="settings"></div>
         <div class="stack">
-          <div class="card"><div class="card-h"><h2>Comfort temperature</h2></div><div id="comfort"></div></div>
+          <div class="card"><div class="card-h"><h2>Day temperature</h2></div><div id="comfort"></div></div>
+          <div class="card"><div class="card-h"><h2>Night</h2></div><div id="night"></div></div>
           <div class="card"><div class="setting"><div><b>Open-window detection</b><p>A thermostat pauses when the room cools quickly, e.g. while airing.</p></div><label class="switch"><input type="checkbox" id="set-window" aria-label="Open-window detection"><span></span></label></div></div>
         </div>
       </div>
@@ -567,6 +569,9 @@ const E = {
   climate: r => `climate.${r}_floor_heating`, comfort: r => `number.${r}_floor_heating_comfort_temperature`,
   online: r => `binary_sensor.${r}_floor_heating_online`, wifi: r => `sensor.${r}_floor_heating_wifi_signal`,
   floor: r => `sensor.${r}_floor_temperature`, energy: r => `sensor.${r}_floor_heating_energy_30_days`,
+  night: r => `input_number.stg_night_${r}`, rateR: r => `input_number.stg_rate_${r}`,
+  nightOn: "binary_sensor.stg_night", nightEn: "input_boolean.stg_night_enabled", warming: "input_boolean.stg_night_warming",
+  nStart: "input_datetime.stg_night_start", nEnd: "input_datetime.stg_night_end", wakeStart: "sensor.stg_morning_warm_up_start",
 };
 const SEG = [["Auto", "Auto"], ["Home", "Home"], ["Eco", "Out"], ["Away", "Away"]];
 const NAV = [
@@ -589,13 +594,14 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
   S(E.start, new Date(arr - 3 * H).toISOString()); S(E.stop, new Date(dep - H).toISOString());
   S(E.gap, "0.3"); S(E.preheat, "1.6"); S(E.rate, "0.55"); S(E.last, "");
   S(E.away, "5"); S(E.drop, "2"); S(E.boostInc, "2"); S(E.boostDur, "2"); S(E.margin, "1"); S(E.stopBefore, "1"); S(E.boostTimer, "idle");
+  S(E.nightOn, "off"); S(E.nightEn, "on"); S(E.warming, "off"); S(E.nStart, "22:00:00"); S(E.nEnd, "08:00:00"); S(E.wakeStart, at(1, 5, 10).toISOString());
   S(E.price, "0.4176", { supplier: "Salzburg AG", valid_from: "2026-09-01" });
   S("person.mike", "home"); S("person.irene", "home"); S("person.oli", "not_home");
   const d = { living_room: [21.8, 22, 22, 24.6, -58, 84], kitchen: [20.2, 20, 20, 23.1, -61, 41], hall: [19.1, 20, 20, 22.8, -55, 38], bathroom: [20.4, 20, 20, 25.2, -63, 52], bedroom: [18.6, 19, 19, 22.0, -73, 61] };
   for (const [r, n] of ROOMS) {
     const [cur, tgt, cf, fl, wf, kwh] = d[r];
     S(E.climate(r), "heat", { current_temperature: cur, temperature: tgt, preset_mode: "MANUAL", hvac_action: cur < tgt - .2 ? "heating" : "idle" });
-    S(E.comfort(r), cf); S(E.online(r), "on"); S(E.wifi(r), wf); S(E.floor(r), fl); S(E.energy(r), kwh);
+    S(E.comfort(r), cf); S(E.night(r), r === "bedroom" ? cf : cf - 1.5); S(E.rateR(r), .5); S(E.online(r), "on"); S(E.wifi(r), wf); S(E.floor(r), fl); S(E.energy(r), kwh);
     S(`switch.demo_window_${r}`, "on", { friendly_name: `${n} Floor Heating Switch Window detection` });
   }
 })();
@@ -616,7 +622,7 @@ async function call(domain, service, data) {
   if (domain === "input_select") { S(id, data.option); demoMode(data.option); }
   else if (domain === "climate") setTarget(id.split(".")[1].replace("_floor_heating", ""), data.temperature);
   else if (domain === "number" || domain === "input_number") { S(id, data.value, states[id]?.attributes); if (domain === "number") { const r = id.split(".")[1].replace("_floor_heating_comfort_temperature", ""); if (st(E.mode) === "Home" || st(E.mode) === "Auto") setTarget(r, data.value); } }
-  else if (domain === "input_datetime") { S(id, data.datetime); demoStay(); }
+  else if (domain === "input_datetime") { S(id, data.datetime || data.time); demoStay(); }
   else if (domain === "input_boolean") { S(id, service === "turn_on" ? "on" : "off"); demoStay(); }
   else if (domain === "switch") S(id, service === "turn_on" ? "on" : "off", states[id]?.attributes);
   render();
@@ -655,6 +661,7 @@ const $ = s => document.querySelector(s);
 const fmtD = d => d ? d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "–";
 const fmtDay = d => d ? d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : "–";
 const fmtT = d => d ? d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "–";
+const hm = v => (v || "").slice(0, 5) || "–";
 const t1 = v => (Math.round(v * 10) / 10).toFixed(1);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 function toast(t) { const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2600); }
@@ -698,6 +705,8 @@ function situation() {
   const hs = heating.length ? `Heating ${heating.join(", ")}.` : "Every room is at temperature.";
   if (m === "Auto") {
     if (a === "Pre-heating") return ["Warming up", "hot", `Started ${fmtT(new Date(st(E.start)))}, comfortable by ${fmtT(parseHA(st(E.arr)))}.`, "Follows your stays and who's here."];
+    if (a === "Night") { const w = st(E.wakeStart); return ["Night", "low", `Rooms at their night temperatures. Warm-up starts ${w ? fmtT(new Date(w)) : "…"}, warm by ${hm(st(E.nEnd))}.`, "Follows your stays, who's here and the night times."]; }
+    if (a.startsWith("Home") && st(E.warming) === "on") return ["Warming for the morning", "hot", `Every room back to day temperature by ${hm(st(E.nEnd))}.`, "Follows your stays, who's here and the night times."];
     if (a.startsWith("Home")) return ["Comfortable", heating.length ? "hot" : "ok", hs, "Follows your stays and who's here."];
     if (a === "Out for the day") return ["Out, kept cosy", "low", `Each room ${drop} °C lower until someone is back.`, "Follows your stays and who's here."];
     return [`Resting at ${away} °C`, "low", "No stay running. It warms up by itself before your next arrival.", "Follows your stays and who's here."];
@@ -846,10 +855,15 @@ const SETTINGS = [
 ];
 function windowSwitches() { return Object.values(states).filter(s => s.entity_id.startsWith("switch.") && / Floor Heating Switch Window detection$/.test(s.attributes?.friendly_name || "")); }
 function renderSettings() {
-  if (document.activeElement?.closest?.("#settings,#comfort")) return;
+  if (document.activeElement?.closest?.("#settings,#comfort,#night")) return;
   $("#settings").innerHTML = SETTINGS.map(([id, l, d, mi, ma, s, u], i) => `<div class="setting"><div><b>${l}</b><p>${d}</p></div><output class="num" id="o${i}">${num(id)} ${u}</output><input type="range" id="s${i}" aria-label="${l}" min="${mi}" max="${ma}" step="${s}" value="${num(id)}" data-set="${i}"></div>`).join("") +
     `<div class="setting"><div><b>Electricity price</b><p>From your income and expense app.</p></div><output class="num">${price() ? price().toFixed(4) : "–"} €/kWh</output></div>`;
   $("#comfort").innerHTML = ROOMS.map(([r, n]) => `<div class="setting"><b>${n}</b><div class="stepper"><button aria-label="${n} comfort cooler" data-comfort="-0.5" data-room="${r}">−</button><output class="num">${t1(num(E.comfort(r)))}°</output><button aria-label="${n} comfort warmer" data-comfort="0.5" data-room="${r}">+</button></div></div>`).join("");
+  const w = st(E.wakeStart), en = st(E.nightEn) !== "off";
+  $("#night").innerHTML = `<div class="setting"><div><b>Night temperatures</b><p>During a stay, from night start until the morning warm-up.</p></div><label class="switch"><input type="checkbox" id="n-en" aria-label="Night temperatures" ${en ? "checked" : ""}><span></span></label></div>
+    <div class="setting"><div><b>Night starts</b></div><input type="time" class="time" id="n-start" value="${hm(st(E.nStart))}" aria-label="Night starts"></div>
+    <div class="setting"><div><b>Warm by</b><p>${w ? `Tonight the floors start warming at <b class="num">${fmtT(new Date(w))}</b>, worked out from each room's temperature and how fast it warms up.` : "When you get up."}</p></div><input type="time" class="time" id="n-end" value="${hm(st(E.nEnd))}" aria-label="Warm by"></div>` +
+    ROOMS.map(([r, n]) => `<div class="setting"><div><b>${n}</b><p>Warms ${t1(num(E.rateR(r), .5))} °C/h</p></div><div class="stepper"><button aria-label="${n} night cooler" data-night="-0.5" data-room="${r}">−</button><output class="num">${t1(num(E.night(r), 18))}°</output><button aria-label="${n} night warmer" data-night="0.5" data-room="${r}">+</button></div></div>`).join("");
   const ws = windowSwitches(); $("#set-window").checked = ws.length ? ws.every(s => s.state === "on") : true;
 }
 
@@ -877,6 +891,7 @@ document.addEventListener("click", async e => {
   if (t.id === "p-frost") { const on = st(E.mode) === "Frost protection"; await call("input_select", "select_option", { entity_id: E.mode, option: on ? "Auto" : "Frost protection" }); return toast(on ? "Back to Auto" : "Frost protection only"); }
   if (t.dataset.step && sheetRoom) { const r = sheetRoom, v = Math.min(28, Math.max(5, (attr(E.climate(r), "temperature") || 20) + parseFloat(t.dataset.step))); await call("climate", "set_temperature", { entity_id: E.climate(r), temperature: v }); return toast(`${RN[r]} set to ${t1(v)} °C`); }
   if (t.dataset.comfort) { const r = t.dataset.room, v = Math.min(28, Math.max(10, num(E.comfort(r), 20) + parseFloat(t.dataset.comfort))); await call("number", "set_value", { entity_id: E.comfort(r), value: v }); t.blur(); renderSettings(); return toast(`${RN[r]} comfort ${t1(v)} °C`); }
+  if (t.dataset.night) { const r = t.dataset.room, v = Math.min(25, Math.max(5, num(E.night(r), 18) + parseFloat(t.dataset.night))); await call("input_number", "set_value", { entity_id: E.night(r), value: v }); t.blur(); renderSettings(); return toast(`${RN[r]} at night ${t1(v)} °C`); }
   if (t.dataset.room) return openRoom(t.dataset.room);
   if (t.id === "st-save") { const a = new Date($("#st-arr").value), d = new Date($("#st-dep").value); if (!(a < d)) return toast("Departure must be after arrival");
     await call("input_datetime", "set_datetime", { entity_id: E.arr, datetime: haDT(a) }); await call("input_datetime", "set_datetime", { entity_id: E.dep, datetime: haDT(d) }); await call("input_boolean", "turn_on", { entity_id: E.planned }); t.blur(); renderStay(); return toast("Stay saved"); }
@@ -896,6 +911,8 @@ document.addEventListener("change", async e => {
   const el = e.target;
   if (el.dataset.set !== undefined) { const [id, l] = SETTINGS[el.dataset.set]; await call("input_number", "set_value", { entity_id: id, value: parseFloat(el.value) }); el.blur(); toast(`${l} saved`); }
   if (el.id === "st-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.planned }); toast(el.checked ? "Stay planned" : "Stay switched off"); }
+  if (el.id === "n-en") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.nightEn }); toast(el.checked ? "Night temperatures on" : "Night temperatures off"); }
+  if ((el.id === "n-start" || el.id === "n-end") && /^\d{2}:\d{2}$/.test(el.value)) { await call("input_datetime", "set_datetime", { entity_id: el.id === "n-start" ? E.nStart : E.nEnd, time: el.value + ":00" }); el.blur(); toast(el.id === "n-start" ? `Night from ${el.value}` : `Warm by ${el.value}`); }
   if (el.id === "set-window") { for (const sw of windowSwitches()) await call("switch", el.checked ? "turn_on" : "turn_off", { entity_id: sw.entity_id }); toast(`Open-window detection ${el.checked ? "on" : "off"}`); }
 });
 

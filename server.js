@@ -36,7 +36,7 @@ const RELEVANT = [
   new RegExp(`^sensor\\.${R}_floor_temperature$`),
   /^person\.(mike|irene|oli)$/,
   /^input_(select|text|datetime|boolean|number)\.stg_/,
-  /^sensor\.stg_/, /^binary_sensor\.stg_stay_active$/, /^timer\.stg_heating_boost$/, /^zone\.home$/,
+  /^sensor\.stg_/, /^binary_sensor\.stg_(stay_active|night)$/, /^timer\.stg_heating_boost$/, /^zone\.home$/,
 ];
 const isWindowSwitch = s => s.entity_id.startsWith("switch.") && / Floor Heating Switch Window detection$/.test(s.attributes?.friendly_name || "");
 const relevant = s => s && (s.entity_id === PRICE_SENSOR || RELEVANT.some(r => r.test(s.entity_id)) || isWindowSwitch(s));
@@ -62,10 +62,12 @@ function allowed(domain, service, data) {
     case "number.set_value":
       return new RegExp(`^number\\.${R}_floor_heating_comfort_temperature$`).test(id) && num(data.value, 10, 28) && keys === "entity_id,value";
     case "input_datetime.set_datetime":
+      if (["input_datetime.stg_night_start", "input_datetime.stg_night_end"].includes(id)) return /^\d{2}:\d{2}:00$/.test(data.time) && keys === "entity_id,time";
       return ["input_datetime.stg_arrival", "input_datetime.stg_departure"].includes(id) && DT.test(data.datetime) && keys === "datetime,entity_id";
     case "input_boolean.turn_on": case "input_boolean.turn_off":
-      return id === "input_boolean.stg_arrival_planned" && keys === "entity_id";
+      return ["input_boolean.stg_arrival_planned", "input_boolean.stg_night_enabled"].includes(id) && keys === "entity_id";
     case "input_number.set_value":
+      if (new RegExp(`^input_number\\.stg_night_${R}$`).test(id)) return num(data.value, 5, 25) && keys === "entity_id,value";
       return SETTINGS.includes(id) && num(data.value, 0, 40) && keys === "entity_id,value";
     case "switch.turn_on": case "switch.turn_off":
       return !!states[id] && isWindowSwitch(states[id]) && keys === "entity_id";
