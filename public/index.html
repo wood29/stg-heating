@@ -688,7 +688,7 @@ const E = {
   air: { kitchen: ["sensor.indoor_stg_humidity", "sensor.indoor_stg_carbon_dioxide"], bathroom: ["sensor.indoor_stg_bedroom_humidity", "sensor.indoor_stg_bedroom_carbon_dioxide"], bedroom: ["sensor.indoor_stg_bedroom_humidity_2", "sensor.indoor_stg_bedroom_carbon_dioxide_2"] },
   outT: "sensor.indoor_stg_outdoor_stg_temperature",
   co2On: "input_boolean.stg_co2_alert", co2Limit: "input_number.stg_co2_limit",
-  pushDev: [["mike_m4", "Mike's iPad", "iPad Pro M4"], ["mhh_pro", "iPhone", "MHH Pro"], ["mhh17", "iPhone", "MHH17"]],
+  pushDev: [["mhh17", "Mike's iPhone", "iPhone 17"], ["mike_m4", "Mike's iPad", "iPad Pro M4"]],
   nStart: "input_datetime.stg_night_start", nEnd: "input_datetime.stg_night_end", wakeStart: "sensor.stg_morning_warm_up_start",
 };
 const SEG = [["Auto", "Auto"], ["Home", "Home"], ["Eco", "Out"], ["Away", "Away"]];
@@ -1308,7 +1308,7 @@ document.addEventListener("change", async e => {
   if (el.dataset.set !== undefined) { const [id, l] = SETTINGS[el.dataset.set]; await call("input_number", "set_value", { entity_id: id, value: parseFloat(el.value) }); el.blur(); toast(`${l} saved`); }
   if (el.id === "st-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.planned }); toast(el.checked ? "Stay planned" : "Stay switched off"); }
   if (el.id === "co2-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.co2On }); toast(el.checked ? "CO₂ alert on" : "CO₂ alert off"); }
-  if (el.dataset.push) { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: `input_boolean.stg_co2_push_${el.dataset.push}` }); toast(`${el.checked ? "Pushes" : "No pushes"} to ${E.pushDev.find(x => x[0] === el.dataset.push).slice(1).join(" ")}`); }
+  if (el.dataset.push) { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: `input_boolean.stg_co2_push_${el.dataset.push}` }); toast(`${el.checked ? "Pushes" : "No pushes"} to ${E.pushDev.find(x => x[0] === el.dataset.push)[1]}`); }
   if (el.id === "n-en") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.nightEn }); toast(el.checked ? "Night temperatures on" : "Night temperatures off"); }
   if ((el.id === "n-start" || el.id === "n-end") && /^\d{2}:\d{2}$/.test(el.value)) { await call("input_datetime", "set_datetime", { entity_id: el.id === "n-start" ? E.nStart : E.nEnd, time: el.value + ":00" }); el.blur(); toast(el.id === "n-start" ? `Night from ${el.value}` : `Warm by ${el.value}`); }
   if (el.id === "set-window") { for (const sw of windowSwitches()) await call("switch", el.checked ? "turn_on" : "turn_off", { entity_id: sw.entity_id }); toast(`Open-window detection ${el.checked ? "on" : "off"}`); }
