@@ -36,7 +36,7 @@ const RELEVANT = [
   new RegExp(`^sensor\\.${R}_floor_temperature$`),
   /^person\.(mike|irene|oli)$/,
   /^input_(select|text|datetime|boolean|number)\.stg_/,
-  /^sensor\.stg_/, /^binary_sensor\.stg_(stay_active|night)$/, /^timer\.stg_heating_boost$/, /^zone\.home$/,
+  /^sensor\.stg_/, /^sensor\.indoor_stg_/, /^binary_sensor\.stg_(stay_active|night)$/, /^timer\.stg_heating_boost$/, /^zone\.home$/,
 ];
 const isWindowSwitch = s => s.entity_id.startsWith("switch.") && / Floor Heating Switch Window detection$/.test(s.attributes?.friendly_name || "");
 const relevant = s => s && (s.entity_id === PRICE_SENSOR || RELEVANT.some(r => r.test(s.entity_id)) || isWindowSwitch(s));

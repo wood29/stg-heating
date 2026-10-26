@@ -115,6 +115,10 @@ main{padding:calc(12px + env(safe-area-inset-top,0px)) max(18px,env(safe-area-in
 h1{font-size:26px;line-height:1.15;font-weight:600;letter-spacing:-.025em;margin:2px 0 0;text-wrap:balance}
 h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
 .sub{color:var(--ink-2);margin:6px 0 0;max-width:58ch}
+.facts{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:13.5px;color:var(--ink-2)}
+.facts:empty{display:none}.facts b{color:var(--ink);font-weight:500;font-size:15px;margin-right:4px}
+.room .air{display:block;font-size:12px;color:var(--ink-3);margin-top:3px}
+.air-warn{color:var(--warn)}
 .card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:18px}
 .card.flat{padding:8px 8px 14px}
 .card.flat .legend{padding:0 10px}
@@ -311,9 +315,9 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
   .g-rooms .card.flat{padding:14px 18px 16px}
   .rooms-card{background:none;box-shadow:none;padding:0}
   .rooms{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
-  .rooms .room{grid-template-columns:1fr;grid-template-areas:"n" "t" "m";align-content:space-between;gap:10px;background:var(--card);box-shadow:var(--shadow);border-radius:18px;border-top:0;padding:16px 16px 14px;min-height:140px;transition:transform .15s ease}
+  .rooms .room{grid-template-columns:1fr;grid-template-areas:"n" "t" "m";grid-template-rows:auto auto 1fr;align-content:stretch;gap:12px;background:var(--card);box-shadow:var(--shadow);border-radius:18px;border-top:0;padding:16px 16px 14px;min-height:140px;transition:transform .15s ease}
   .rooms .room:hover{transform:translateY(-1px)}
-  .rooms .room b{grid-area:n} .rooms .room .meta{grid-area:m;grid-column:auto}
+  .rooms .room b{grid-area:n} .rooms .room .meta{grid-area:m;grid-column:auto;align-self:end}
   .rooms .room .t{grid-area:t;grid-row:auto;grid-column:auto;text-align:left;font-size:clamp(28px,3.4vw,40px);line-height:1}
   .rooms .room .meta{font-size:12.5px}
   .rooms .room .t small{display:none}
@@ -349,6 +353,7 @@ dialog.sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line
             <div class="temp num" id="h-temp">–</div>
             <div class="status"><i id="h-dot"></i><span id="h-status">–</span></div>
             <p class="sub" id="h-sub"></p>
+            <div class="facts" id="h-facts"></div>
           </div>
           <div style="grid-area:ctrl" class="ctrl">
             <div class="seg" role="group" aria-label="Heating mode" id="seg"></div>
@@ -604,6 +609,8 @@ const E = {
   floor: r => `sensor.${r}_floor_temperature`, energy: r => `sensor.${r}_floor_heating_energy_30_days`,
   night: r => `input_number.stg_night_${r}`, rateR: r => `input_number.stg_rate_${r}`,
   nightOn: "binary_sensor.stg_night", nightEn: "input_boolean.stg_night_enabled", warming: "input_boolean.stg_night_warming",
+  air: { kitchen: ["sensor.indoor_stg_humidity", "sensor.indoor_stg_carbon_dioxide"], bathroom: ["sensor.indoor_stg_bedroom_humidity", "sensor.indoor_stg_bedroom_carbon_dioxide"], bedroom: ["sensor.indoor_stg_bedroom_humidity_2", "sensor.indoor_stg_bedroom_carbon_dioxide_2"] },
+  outT: "sensor.indoor_stg_outdoor_stg_temperature",
   nStart: "input_datetime.stg_night_start", nEnd: "input_datetime.stg_night_end", wakeStart: "sensor.stg_morning_warm_up_start",
 };
 const SEG = [["Auto", "Auto"], ["Home", "Home"], ["Eco", "Out"], ["Away", "Away"]];
@@ -627,6 +634,7 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
   S(E.start, new Date(arr - 3 * H).toISOString()); S(E.stop, new Date(dep - H).toISOString());
   S(E.gap, "0.3"); S(E.preheat, "1.6"); S(E.rate, "0.55"); S(E.last, "");
   S(E.away, "5"); S(E.drop, "2"); S(E.boostInc, "2"); S(E.boostDur, "2"); S(E.margin, "1"); S(E.stopBefore, "1"); S(E.boostTimer, "idle");
+  S(E.air.kitchen[0], 61); S(E.air.kitchen[1], 1480); S(E.air.bathroom[0], 58); S(E.air.bathroom[1], 820); S(E.air.bedroom[0], 52); S(E.air.bedroom[1], 760); S(E.outT, 8.4);
   S(E.nightOn, "off"); S(E.nightEn, "on"); S(E.warming, "off"); S(E.nStart, "22:00:00"); S(E.nEnd, "08:00:00"); S(E.wakeStart, at(1, 5, 10).toISOString());
   S(E.price, "0.4176", { supplier: "Salzburg AG", valid_from: "2026-09-01" });
   S("person.mike", "home"); S("person.irene", "home"); S("person.oli", "not_home");
@@ -685,7 +693,7 @@ async function goLive() {
   es.addEventListener("removed", e => { delete states[JSON.parse(e.data).entity_id]; soon(); });
   es.addEventListener("status", e => { haUp = JSON.parse(e.data).connected; soon(); });
   es.onerror = () => { haUp = false; soon(); };
-  const costs = () => fetch("api/costs").then(r => r.ok ? r.json() : null).then(d => { if (d) { costData = d; renderInsights(); } }).catch(() => {});
+  const costs = () => fetch("api/costs").then(r => r.ok ? r.json() : null).then(d => { if (d) { costData = d; renderInsights(); renderHome(); } }).catch(() => {});
   costs(); setInterval(costs, 15 * 60e3);
 }
 
@@ -707,8 +715,23 @@ function room(r) {
   const cf = num(E.comfort(r), 20), online = st(E.online(r)) !== "off" && c && c.state !== "unavailable";
   const heating = c?.attributes?.hvac_action === "heating", lowered = typeof tgt === "number" && tgt < cf - .4;
   const state = !online ? "off" : heating ? "hot" : lowered ? "low" : "ok";
-  const text = { off: "Offline", hot: "Heating", low: "Lowered", ok: "Comfortable" }[state];
-  return { r, name: RN[r], cur, tgt, cf, online, heating, lowered, state, text, preset: c?.attributes?.preset_mode };
+  let text = { off: "Offline", hot: "Heating", low: "Lowered", ok: "Comfortable" }[state];
+  const by = warmBy(); if (state === "hot" && by) text = `Heating · warm by ${by}`;
+  const [hId, cId] = E.air[r] || [], hum = num(hId, NaN), co2 = num(cId, NaN);
+  return { r, name: RN[r], cur, tgt, cf, online, heating, lowered, state, text, preset: c?.attributes?.preset_mode, hum, co2 };
+}
+// when heating has a deadline: the morning "warm by" time, or the arrival during pre-heating
+function warmBy() {
+  if (st(E.mode) !== "Auto") return "";
+  if (st(E.auto) === "Pre-heating") { const a = parseHA(st(E.arr)); return a ? fmtT(a) : ""; }
+  if (st(E.warming) === "on") return hm(st(E.nEnd));
+  return "";
+}
+function airLine(x) {
+  const parts = [];
+  if (Number.isFinite(x.hum)) parts.push(`${Math.round(x.hum)}% humidity`);
+  if (Number.isFinite(x.co2)) parts.push(x.co2 >= 1400 ? `<span class="air-warn">CO₂ ${Math.round(x.co2).toLocaleString("en-GB")} · air it</span>` : `CO₂ ${Math.round(x.co2).toLocaleString("en-GB")}`);
+  return parts.join(" · ");
 }
 function picture(id) {
   const p = attr(id, "entity_picture");
@@ -775,6 +798,13 @@ function renderHome() {
   const [title, tone, sub, note] = situation();
   $("#h-status").textContent = title; $("#h-dot").className = tone === "ok" ? "" : tone;
   $("#h-sub").textContent = sub;
+  const facts = [];
+  if (Number.isFinite(num(E.outT, NaN))) facts.push(`<span><b class="num">${t1(num(E.outT))}°</b> outside</span>`);
+  const dd = (live ? (costData?.days || []) : demoDays()).filter(d => typeof d.eur === "number" && d.eur > 0);
+  if (dd.length) { const d = dd[dd.length - 1], dt = new Date(d.start), yd = new Date(); yd.setDate(yd.getDate() - 1);
+    const lbl = dt.toDateString() === yd.toDateString() ? "yesterday" : dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+    facts.push(`<span><b class="num">€ ${d.eur.toFixed(2)}</b> ${lbl}</span>`); }
+  $("#h-facts").innerHTML = facts.join("");
   $("#h-eyebrow").textContent = `St. Gilgen · ${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}`;
   const m = st(E.mode);
   $("#seg").innerHTML = SEG.map(([v, l]) => `<button data-mode="${v}" aria-pressed="${m === v}">${l}</button>`).join("");
@@ -824,7 +854,8 @@ function renderRooms() {
   renderPlan($("#plan-rooms"), planLook());
   $("#rooms").innerHTML = ROOMS.map(([r]) => {
     const x = room(r);
-    return `<button class="room" data-room="${r}"><b>${x.name}</b><span class="meta"><i class="dot ${x.state}"></i>${x.text}${x.online ? ` · ${t1(x.tgt)}°` : ""}</span><span class="t num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}<small>now</small></span></button>`;
+    const air = airLine(x);
+    return `<button class="room" data-room="${r}"><b>${x.name}</b><span class="meta"><i class="dot ${x.state}"></i>${x.text}${x.online && !x.text.includes("warm by") ? ` · ${t1(x.tgt)}°` : ""}${air ? `<span class="air">${air}</span>` : ""}</span><span class="t num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}<small>now</small></span></button>`;
   }).join("");
 }
 
@@ -840,6 +871,8 @@ function renderSheet() {
       <div class="stepper"><button data-step="-0.5" aria-label="Cooler">−</button><output class="num">${t1(x.tgt ?? 0)}°</output><button data-step="0.5" aria-label="Warmer">+</button></div></div>
     <dl class="kv"><dt>Thermostat</dt><dd>${{ MANUAL: "Manual", VACATION: "Lowered", PAUSE: "Paused", SCHEDULE: "Schedule", OVERRIDE: "Override" }[x.preset] || x.preset || "–"}</dd>
       <dt>Wi-Fi signal</dt><dd class="num" style="color:${num(E.wifi(x.r)) < -70 ? "var(--warn)" : "inherit"}">${num(E.wifi(x.r))} dBm${num(E.wifi(x.r)) < -70 ? " · weak" : ""}</dd>
+      ${Number.isFinite(x.hum) ? `<dt>Humidity</dt><dd class="num">${Math.round(x.hum)} %</dd>` : ""}
+      ${Number.isFinite(x.co2) ? `<dt>CO₂</dt><dd class="num" style="color:${x.co2 >= 1400 ? "var(--warn)" : "inherit"}">${Math.round(x.co2)} ppm${x.co2 >= 1400 ? " · open a window for a few minutes" : ""}</dd>` : ""}
       <dt>Energy, 30 days</dt><dd class="num">${Math.round(num(E.energy(x.r)))} kWh</dd></dl>
     <button class="btn ghost" data-go="settings" data-close>Change comfort temperature</button>`;
 }
