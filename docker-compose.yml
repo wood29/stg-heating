@@ -4,6 +4,10 @@ services:
     image: ghcr.io/wood29/stg-heating:latest
     container_name: stg-heating
     restart: unless-stopped
+    pull_policy: always   # recreate always fetches the newest image (the app also updates itself)
+    # The NAS can't look up Tailscale names (MagicDNS), so map the HA name to its Tailscale IP.
+    extra_hosts:
+      - "<st-gilgen-home-assistant>.ts.net:100.x.y.z"
     ports:
       - "8793:8080"
     environment:
