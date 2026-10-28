@@ -202,7 +202,10 @@ const BENCH_STAT = "sensor.stg_bench_energy";
 // Known, fixed facts that the app keeps in Home Assistant (not editable in the app).
 const BENCH_WATTS = 520; // measured heater power of the bench warmer
 function enforceFixed() {
-  const cur = parseFloat(states["input_number.stg_bench_power"]?.state);
+  const st0 = states["input_number.stg_bench_power"];
+  if (!st0 || enforceFixed.done) return;   // only when the helper exists; once per run
+  const cur = parseFloat(st0.state);
+  enforceFixed.done = true;
   if (cur !== BENCH_WATTS) haSend({ type: "call_service", domain: "input_number", service: "set_value", service_data: { entity_id: "input_number.stg_bench_power", value: BENCH_WATTS } })
     .then(() => console.log(`Bench warmer power set to ${BENCH_WATTS} W`)).catch(e => console.error("Bench power:", e.message));
 }
