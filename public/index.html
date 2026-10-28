@@ -146,6 +146,7 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
 .bench-hero{padding-bottom:4px}
 .stats.stats3{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media (max-width:520px){.stats3 .stat{padding:12px}.stats3 .stat b{font-size:21px}}
+.kv-fixed{font-size:17px;font-weight:500}
 .stepper button:disabled{opacity:.4;cursor:default}
 .bx-bar .seg{max-width:none}
 .m3d-pin.small{padding:3px 13px 4px 9px;border-radius:10px;background:var(--pin)}.m3d-pin.small .n{font-size:10px}.m3d-pin.small b{font-size:12.5px}
@@ -495,7 +496,7 @@ main{min-width:0}
             <div class="setting"><div><b>Temperature</b><p>On the bench surface</p></div><div class="stepper" id="b-set"></div></div>
             <div class="pills" id="b-presets" style="padding-top:12px"></div>
           </div>
-          <div class="card"><div class="setting" style="border-top:0"><div><b>Heater power</b><p>An estimate until you know it: the label on the heating mat or the manual. Energy and cost are worked out from it.</p></div><div class="stepper sm" id="b-watts"></div></div></div>
+          <div class="card"><div class="setting" style="border-top:0"><div><b>Heater power</b><p>Energy and cost are counted from the heating time.</p></div><output class="num kv-fixed" id="b-watts">520 W</output></div></div>
         </div>
         <div class="stack">
           <div class="hx-bar bx-bar">
@@ -503,7 +504,7 @@ main{min-width:0}
             <div class="hx-nav"><button id="bx-prev" aria-label="Previous period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><b id="bx-label" aria-live="polite">–</b><button id="bx-next" aria-label="Next period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button></div>
           </div>
           <div class="stats stats3 hx-kpis" id="bx-kpis"></div>
-          <div class="card hx-card"><div class="card-h"><h2>Energy</h2><span class="small muted">estimated from heating time</span></div><div class="hx-chart" id="bx-chart"></div>
+          <div class="card hx-card"><div class="card-h"><h2>Energy</h2><span class="small muted">from heating time at 520 W</span></div><div class="hx-chart" id="bx-chart"></div>
             <div class="legend"><span><i style="background:var(--ember)"></i>kWh</span><span><i style="background:var(--s-out)"></i>Bench °C</span></div></div>
         </div>
       </div>
@@ -759,7 +760,7 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
   S(E.gap, "0.3"); S(E.preheat, "1.6"); S(E.rate, "0.55"); S(E.last, "");
   S(E.away, "5"); S(E.drop, "2"); S(E.boostInc, "2"); S(E.boostDur, "2"); S(E.margin, "1"); S(E.stopBefore, "1"); S(E.boostTimer, "idle");
   S(E.air.kitchen[0], 61); S(E.air.kitchen[1], 1480); S(E.air.bathroom[0], 58); S(E.air.bathroom[1], 820); S(E.air.bedroom[0], 52); S(E.air.bedroom[1], 760); S(E.outT, 8.4);
-  S(E.bench, "heat", { current_temperature: 21.5, temperature: 24, hvac_modes: ["off", "heat"], min_temp: 5, max_temp: 40 }); S(E.benchOn, "on"); S(E.benchW, 150); S(E.benchE, 3.2);
+  S(E.bench, "heat", { current_temperature: 21.5, temperature: 24, hvac_modes: ["off", "heat"], min_temp: 5, max_temp: 40 }); S(E.benchOn, "on"); S(E.benchW, 520); S(E.benchE, 3.2);
   S(E.co2On, "on"); S(E.co2Limit, 1400); for (const [d] of E.pushDev) S(`input_boolean.stg_co2_push_${d}`, "on");
   S(E.nightOn, "off"); S(E.nightEn, "on"); S(E.warming, "off"); S(E.nStart, "22:00:00"); S(E.nEnd, "08:00:00"); S(E.wakeStart, at(1, 5, 10).toISOString());
   S(E.price, "0.4176", { supplier: "Salzburg AG", valid_from: "2026-09-01" });
@@ -861,7 +862,7 @@ function bench() {
   const online = !!c && c.state !== "unavailable", heating = st(E.benchOn) === "on";
   const state = !online ? "off" : !on ? "idle" : heating ? "hot" : "ok";
   const text = { off: "Offline", idle: "Off", hot: "Warming up", ok: "Warm" }[state];
-  return { on, cur, tgt, online, heating, state, text, watts: num(E.benchW, 150) };
+  return { on, cur, tgt, online, heating, state, text, watts: num(E.benchW, 520) };
 }
 const co2Limit = () => num(E.co2Limit, 1400);
 const SHORT = [["bedroom", "Bed"], ["bathroom", "Bath"], ["hall", "Hall"], ["kitchen", "Dining"], ["living_room", "Living"]];
@@ -924,7 +925,7 @@ function renderBench() {
   $("#b-power").innerHTML = [["off", "Off"], ["heat", "On"]].map(([v, l]) => `<button data-bmode="${v}" aria-pressed="${(b.on ? "heat" : "off") === v}">${l}</button>`).join("");
   $("#b-set").innerHTML = `<button data-bstep="-0.5" aria-label="Cooler" ${b.on ? "" : "disabled"}>−</button><output class="num">${t1(b.tgt ?? 0)}°</output><button data-bstep="0.5" aria-label="Warmer" ${b.on ? "" : "disabled"}>+</button>`;
   $("#b-presets").innerHTML = [22, 25, 28].map(v => `<button class="pill" data-bset="${v}" aria-pressed="${b.on && Math.abs((b.tgt ?? 0) - v) < .1}">${v}°</button>`).join("");
-  $("#b-watts").innerHTML = `<button data-bw="-10" aria-label="Less">−</button><output class="num">${Math.round(b.watts)} W</output><button data-bw="10" aria-label="More">+</button>`;
+  $("#b-watts").textContent = `${Math.round(b.watts)} W`;
   if (!BX.data) bxLoad(); else bxRender();
 }
 async function bxLoad() {
@@ -949,7 +950,7 @@ function bxRender() {
   const fmtH = h => { const m = Math.round(h * 60), H = Math.floor(m / 60), M = m % 60; return H ? `${H} h${M ? ` ${M} min` : ""}` : `${M} min`; };
   $("#bx-kpis").innerHTML = [
     ["Energy", tk ? `${tk.toFixed(tk >= 10 ? 1 : 2)}<small> kWh</small>` : "0<small> kWh</small>", d.prev?.bench ? `${d.prev.bench.toFixed(2)} kWh in ${R.prevName}` : "&nbsp;"],
-    ["Cost", `€ ${(tk * price).toFixed(2)}`, `≈ at € ${price.toFixed(4)}/kWh`],
+    ["Cost", `€ ${(tk * price).toFixed(2)}`, `at € ${price.toFixed(4)}/kWh`],
     ["Heating time", hrs ? fmtH(hrs) : "–", `at ${Math.round(w)} W`],
   ].map(([l, v, sub]) => `<div class="stat"><span>${l}</span><b class="num">${v}</b><em>${sub}</em></div>`).join("");
   hxChart($("#bx-chart"), R, {
@@ -1393,7 +1394,6 @@ document.addEventListener("click", async e => {
   if (t.dataset.bstep || t.dataset.bset) { const b = bench(), v = Math.min(40, Math.max(5, t.dataset.bset ? +t.dataset.bset : (b.tgt ?? 20) + parseFloat(t.dataset.bstep)));
     if (!b.on) await call("climate", "set_hvac_mode", { entity_id: E.bench, hvac_mode: "heat" });
     await call("climate", "set_temperature", { entity_id: E.bench, temperature: v }); return toast(`Bench set to ${t1(v)} °C`); }
-  if (t.dataset.bw) { const v = Math.min(1000, Math.max(20, num(E.benchW, 150) + parseFloat(t.dataset.bw))); await call("input_number", "set_value", { entity_id: E.benchW, value: v }); return toast(`Heater power ${v} W`); }
   if (t.dataset.bx) { BX.kind = t.dataset.bx; lsSet("bx.kind", BX.kind); BX.anchor = new Date(); return bxLoad(); }
   if (t.id === "bx-prev") return bxShift(-1);
   if (t.id === "bx-next") return bxShift(1);

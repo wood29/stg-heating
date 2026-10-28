@@ -70,7 +70,6 @@ function allowed(domain, service, data) {
     case "input_boolean.turn_on": case "input_boolean.turn_off":
       return (["input_boolean.stg_arrival_planned", "input_boolean.stg_night_enabled", "input_boolean.stg_co2_alert"].includes(id) || /^input_boolean\.stg_co2_push_[a-z0-9_]+$/.test(id)) && keys === "entity_id";
     case "input_number.set_value":
-      if (id === "input_number.stg_bench_power") return num(data.value, 20, 1000) && keys === "entity_id,value";
       if (id === "input_number.stg_co2_limit") return num(data.value, 800, 3000) && keys === "entity_id,value";
       if (new RegExp(`^input_number\\.stg_night_${R}$`).test(id)) return num(data.value, 5, 25) && keys === "entity_id,value";
       return SETTINGS.includes(id) && num(data.value, 0, 40) && keys === "entity_id,value";
@@ -138,6 +137,7 @@ function connect() {
         for (const k of Object.keys(states)) delete states[k];
         for (const s of list) if (relevant(s)) states[s.entity_id] = s;
         broadcast("snapshot", { connected, states });
+        enforceFixed();
       }).catch(e => console.error(e.message));
     } else if (m.type === "event" && m.event?.event_type === "state_changed") {
       const { entity_id, new_state } = m.event.data;
@@ -199,6 +199,13 @@ const HIST = {
   co2_kitchen: "sensor.indoor_stg_carbon_dioxide", co2_bathroom: "sensor.indoor_stg_bedroom_carbon_dioxide", co2_bedroom: "sensor.indoor_stg_bedroom_carbon_dioxide_2",
 };
 const BENCH_STAT = "sensor.stg_bench_energy";
+// Known, fixed facts that the app keeps in Home Assistant (not editable in the app).
+const BENCH_WATTS = 520; // measured heater power of the bench warmer
+function enforceFixed() {
+  const cur = parseFloat(states["input_number.stg_bench_power"]?.state);
+  if (cur !== BENCH_WATTS) haSend({ type: "call_service", domain: "input_number", service: "set_value", service_data: { entity_id: "input_number.stg_bench_power", value: BENCH_WATTS } })
+    .then(() => console.log(`Bench warmer power set to ${BENCH_WATTS} W`)).catch(e => console.error("Bench power:", e.message));
+}
 const ROOM_STATS = Object.fromEntries(ROOMS.map(r => [r, `sensor.${r}_floor_heating_energy_total`]));
 const histCache = new Map();
 async function history(q) {
