@@ -56,6 +56,7 @@ function allowed(domain, service, data) {
   const keys = Object.keys(data || {}).sort().join(",");
   switch (`${domain}.${service}`) {
     case "input_select.select_option":
+      if (id === "input_select.stg_bench_repeat") return ["Once", "Every day", "Weekdays", "Weekends"].includes(data.option) && keys === "entity_id,option";
       return id === "input_select.stg_heating_mode" && MODES.includes(data.option) && keys === "entity_id,option";
     case "climate.set_temperature":
       if (id === "climate.bench_warmer") return num(data.temperature, 5, 40) && keys === "entity_id,temperature";
@@ -65,11 +66,13 @@ function allowed(domain, service, data) {
     case "climate.set_hvac_mode":
       return id === "climate.bench_warmer" && ["off", "heat"].includes(data.hvac_mode) && keys === "entity_id,hvac_mode";
     case "input_datetime.set_datetime":
+      if (["input_datetime.stg_bench_on", "input_datetime.stg_bench_off"].includes(id)) return DT.test(data.datetime) && keys === "datetime,entity_id";
       if (["input_datetime.stg_night_start", "input_datetime.stg_night_end"].includes(id)) return /^\d{2}:\d{2}:00$/.test(data.time) && keys === "entity_id,time";
       return ["input_datetime.stg_arrival", "input_datetime.stg_departure"].includes(id) && DT.test(data.datetime) && keys === "datetime,entity_id";
     case "input_boolean.turn_on": case "input_boolean.turn_off":
-      return (["input_boolean.stg_arrival_planned", "input_boolean.stg_night_enabled", "input_boolean.stg_co2_alert"].includes(id) || /^input_boolean\.stg_co2_push_[a-z0-9_]+$/.test(id)) && keys === "entity_id";
+      return (["input_boolean.stg_arrival_planned", "input_boolean.stg_night_enabled", "input_boolean.stg_co2_alert", "input_boolean.stg_bench_plan"].includes(id) || /^input_boolean\.stg_co2_push_[a-z0-9_]+$/.test(id)) && keys === "entity_id";
     case "input_number.set_value":
+      if (id === "input_number.stg_bench_plan_temp") return num(data.value, 5, 40) && keys === "entity_id,value";
       if (id === "input_number.stg_co2_limit") return num(data.value, 800, 3000) && keys === "entity_id,value";
       if (new RegExp(`^input_number\\.stg_night_${R}$`).test(id)) return num(data.value, 5, 25) && keys === "entity_id,value";
       return SETTINGS.includes(id) && num(data.value, 0, 40) && keys === "entity_id,value";
@@ -137,7 +140,7 @@ function connect() {
         for (const k of Object.keys(states)) delete states[k];
         for (const s of list) if (relevant(s)) states[s.entity_id] = s;
         broadcast("snapshot", { connected, states });
-        enforceFixed();
+        enforceFixed(); ensureBenchTimer();
       }).catch(e => console.error(e.message));
     } else if (m.type === "event" && m.event?.event_type === "state_changed") {
       const { entity_id, new_state } = m.event.data;
@@ -199,6 +202,47 @@ const HIST = {
   co2_kitchen: "sensor.indoor_stg_carbon_dioxide", co2_bathroom: "sensor.indoor_stg_bedroom_carbon_dioxide", co2_bedroom: "sensor.indoor_stg_bedroom_carbon_dioxide_2",
 };
 const BENCH_STAT = "sensor.stg_bench_energy";
+// Bench timer: helpers + automation in Home Assistant, created once if missing (idempotent).
+// A session switches the bench on at "StG bench on" to "StG bench plan temp" and off at "StG bench off";
+// "StG bench repeat" (Once / Every day / Weekdays / Weekends) moves both times on after each session.
+const BENCH_AUTO_ID = "stg_bench_planned_session";
+let benchTimerDone = false;
+async function ensureBenchTimer() {
+  if (benchTimerDone) return; benchTimerDone = true;
+  const mk = async (type, body, id) => { if (states[id]) return; await haSend({ type, ...body }).then(() => console.log(`Created ${id}`)).catch(e => console.error(`${id}:`, e.message)); };
+  await mk("input_boolean/create", { name: "StG bench plan", icon: "mdi:timer-outline" }, "input_boolean.stg_bench_plan");
+  await mk("input_datetime/create", { name: "StG bench on", has_date: true, has_time: true, icon: "mdi:clock-start" }, "input_datetime.stg_bench_on");
+  await mk("input_datetime/create", { name: "StG bench off", has_date: true, has_time: true, icon: "mdi:clock-end" }, "input_datetime.stg_bench_off");
+  await mk("input_number/create", { name: "StG bench plan temp", min: 5, max: 40, step: 0.5, initial: 25, mode: "box", unit_of_measurement: "°C", icon: "mdi:thermometer" }, "input_number.stg_bench_plan_temp");
+  await mk("input_select/create", { name: "StG bench repeat", options: ["Once", "Every day", "Weekdays", "Weekends"], initial: "Once", icon: "mdi:repeat" }, "input_select.stg_bench_repeat");
+  const url = `${HA_URL}/api/config/automation/config/${BENCH_AUTO_ID}`, H = { Authorization: `Bearer ${HA_TOKEN}`, "Content-Type": "application/json" };
+  try {
+    const have = await fetch(url, { headers: H, signal: AbortSignal.timeout(15000) });
+    if (have.ok) return;
+    const nextDays = "{% set on_dt = states('input_datetime.stg_bench_on') | as_datetime %}{% set rep = states('input_select.stg_bench_repeat') %}{% set ns = namespace(n=0) %}{% for i in range(1, 8) %}{% set wd = (on_dt + timedelta(days=i)).weekday() %}{% if ns.n == 0 and (rep == 'Every day' or (rep == 'Weekdays' and wd < 5) or (rep == 'Weekends' and wd >= 5)) %}{% set ns.n = i %}{% endif %}{% endfor %}{{ ns.n }}";
+    const shift = id => ({ action: "input_datetime.set_datetime", target: { entity_id: id }, data: { datetime: `{{ ((states('${id}') | as_datetime) + timedelta(days=n | int)).strftime('%Y-%m-%d %H:%M:%S') }}` } });
+    const body = {
+      alias: "StG bench: planned session",
+      description: "Bench warmer timer from the Seewärme app: on at 'StG bench on' to 'StG bench plan temp', off at 'StG bench off'. Repeats per 'StG bench repeat', otherwise the timer switches itself off after the session.",
+      mode: "queued",
+      triggers: [{ trigger: "time", at: "input_datetime.stg_bench_on", id: "on" }, { trigger: "time", at: "input_datetime.stg_bench_off", id: "off" }],
+      conditions: [{ condition: "state", entity_id: "input_boolean.stg_bench_plan", state: "on" }],
+      actions: [{ choose: [
+        { conditions: [{ condition: "trigger", id: "on" }], sequence: [
+          { action: "climate.set_hvac_mode", target: { entity_id: "climate.bench_warmer" }, data: { hvac_mode: "heat" } },
+          { delay: { seconds: 3 } },
+          { action: "climate.set_temperature", target: { entity_id: "climate.bench_warmer" }, data: { temperature: "{{ states('input_number.stg_bench_plan_temp') | float(25) }}" } }] },
+        { conditions: [{ condition: "trigger", id: "off" }], sequence: [
+          { action: "climate.set_hvac_mode", target: { entity_id: "climate.bench_warmer" }, data: { hvac_mode: "off" } },
+          { if: [{ condition: "state", entity_id: "input_select.stg_bench_repeat", state: "Once" }],
+            then: [{ action: "input_boolean.turn_off", target: { entity_id: "input_boolean.stg_bench_plan" } }],
+            else: [{ variables: { n: nextDays } }, shift("input_datetime.stg_bench_on"), shift("input_datetime.stg_bench_off")] }] }] }],
+    };
+    const r = await fetch(url, { method: "POST", headers: H, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+    console.log(r.ok ? "Created automation 'StG bench: planned session'" : `Bench timer automation: HTTP ${r.status} ${await r.text()}`);
+  } catch (e) { console.error("Bench timer automation:", e.message); }
+}
+
 // Known, fixed facts that the app keeps in Home Assistant (not editable in the app).
 const BENCH_WATTS = 520; // measured heater power of the bench warmer
 function enforceFixed() {

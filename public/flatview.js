@@ -54,8 +54,9 @@ export async function createFlatView() {
         p.className = `m3d-pin ${L.state || ""} ${L.selected ? "sel" : ""} ${labelsEl.dataset.compact ? "compact" : ""} ${L.small ? "small" : ""}`;
         p.style.left = `${(a[0] / W * 100).toFixed(2)}%`; p.style.top = `${(a[1] / H * 100).toFixed(2)}%`;
         p.style.transform = "translate(-50%, -100%)";
-        p.innerHTML = `<span class="n">${L.name}</span><b class="num">${L.label}</b>${L.state === "hot" ? "<i></i>" : ""}`;
-        p.setAttribute("aria-label", `${L.name} ${L.label}`);
+        const on = L.online !== false, up = !!L.heating;
+        p.innerHTML = `<span class="n">${L.name}</span><b class="num">${L.label}${up ? '<svg class="up" viewBox="0 0 10 12" aria-hidden="true"><path d="M5 11V2M1.5 5L5 1.5 8.5 5"/></svg>' : ""}</b><i class="conn ${on ? "on" : "off"}"></i>`;
+        p.setAttribute("aria-label", `${L.name} ${L.label}, ${on ? "online" : "offline"}${up ? ", heating" : ""}`);
       }
     },
     resetView() {},

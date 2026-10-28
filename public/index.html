@@ -239,13 +239,20 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
 
 /* 3D model */
 .m3d{display:none;position:relative;width:100%;aspect-ratio:16/10.4;border-radius:16px;overflow:hidden;background:radial-gradient(120% 90% at 50% 45%,color-mix(in srgb,var(--card) 70%,var(--bg)) 0%,var(--card) 70%)}
-.has3d .m3d{display:block} .has3d .plan svg{display:none}
+.has3d .m3d{display:block} .has3d .plan>svg{display:none}
 .m3d-canvas{position:absolute;inset:0;width:100%!important;height:100%!important;display:block}
 .m3d-labels{position:absolute;inset:0;pointer-events:none}
 .m3d-pin{position:absolute;left:0;top:0;pointer-events:auto;border:0;background:var(--pin);color:var(--ink);border-radius:12px;padding:5px 10px 6px;display:flex;flex-direction:column;align-items:center;gap:0;box-shadow:0 4px 14px rgba(0,0,0,.14),0 0 0 1px var(--pin-line);min-height:0;font-family:var(--font);white-space:nowrap}
 .m3d-pin .n{font-size:11px;color:var(--ink-2);font-weight:500;line-height:1.2}
 .m3d-pin b{font-size:15px;font-weight:600;line-height:1.15;letter-spacing:-.01em}
-.m3d-pin i{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--ember-strong)}
+.m3d-pin i{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 1.5px var(--pin)}
+.m3d-pin i.conn.off{background:var(--bad)}
+.m3d-pin b{display:inline-flex;align-items:center;gap:3px}
+.m3d-pin .up{width:8px;height:10px;fill:none;stroke:var(--ember);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bt-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:10px;padding:4px 0 6px}
+.bt-grid .field{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--ink-3)}
+.bt-grid input{width:100%;min-width:0}
+.tm-on{color:var(--ok);font-weight:500}
 .m3d-pin.sel{box-shadow:0 4px 14px rgba(0,0,0,.18),0 0 0 2px var(--ink)}
 .m3d-pin:after{content:"";position:absolute;left:50%;bottom:-4px;width:8px;height:8px;background:var(--pin);transform:translateX(-50%) rotate(45deg);box-shadow:1px 1px 0 var(--pin-line)}
 .m3d-pin.compact{padding:3px 8px;border-radius:10px}
@@ -476,7 +483,7 @@ main{min-width:0}
       <div class="page-h"><div class="eyebrow">Rooms</div><h1>The flat, room by room</h1></div>
       <div class="g-rooms">
         <div class="card flat"><div class="plan"><div class="m3d" id="m3d-rooms"><div class="m3d-labels"></div></div><svg id="plan-rooms" role="img" aria-label="Floor plan; tap a room to change it"></svg></div>
-          <div class="legend" aria-hidden="true"><span><i style="background:var(--f-hot)"></i>Heating</span><span><i style="background:var(--f-ok)"></i>Comfortable</span><span><i style="background:var(--f-low)"></i>Lowered</span></div></div>
+          <div class="legend" aria-hidden="true"><span><i style="background:var(--f-hot)"></i>Heating</span><span><i style="background:var(--f-ok)"></i>Comfortable</span><span><i style="background:var(--f-low)"></i>Lowered</span><span><i style="background:var(--ok);border-radius:50%"></i>Online</span><span><i style="background:var(--bad);border-radius:50%"></i>Offline</span><span><b style="color:var(--ember);font-weight:600">↑</b>&nbsp;Heating now</span></div></div>
         <div class="card rooms-card"><div class="rooms" id="rooms"></div></div>
       </div>
     </section>
@@ -496,6 +503,7 @@ main{min-width:0}
             <div class="setting"><div><b>Temperature</b><p>On the bench surface</p></div><div class="stepper" id="b-set"></div></div>
             <div class="pills" id="b-presets" style="padding-top:12px"></div>
           </div>
+          <div class="card" id="b-timer"></div>
           <div class="card"><div class="setting" style="border-top:0"><div><b>Heater power</b><p>Energy and cost are counted from the heating time.</p></div><output class="num kv-fixed" id="b-watts">520 W</output></div></div>
         </div>
         <div class="stack">
@@ -732,7 +740,8 @@ const E = {
   nightOn: "binary_sensor.stg_night", nightEn: "input_boolean.stg_night_enabled", warming: "input_boolean.stg_night_warming",
   air: { kitchen: ["sensor.indoor_stg_humidity", "sensor.indoor_stg_carbon_dioxide"], bathroom: ["sensor.indoor_stg_bedroom_humidity", "sensor.indoor_stg_bedroom_carbon_dioxide"], bedroom: ["sensor.indoor_stg_bedroom_humidity_2", "sensor.indoor_stg_bedroom_carbon_dioxide_2"] },
   outT: "sensor.indoor_stg_outdoor_stg_temperature",
-  bench: "climate.bench_warmer", benchOn: "binary_sensor.stg_bench_heating", benchW: "input_number.stg_bench_power", benchE: "sensor.stg_bench_energy",
+  bench: "climate.bench_warmer", benchOn: "binary_sensor.stg_bench_heating",
+  bPlan: "input_boolean.stg_bench_plan", bOnAt: "input_datetime.stg_bench_on", bOffAt: "input_datetime.stg_bench_off", bTemp: "input_number.stg_bench_plan_temp", bRep: "input_select.stg_bench_repeat", benchW: "input_number.stg_bench_power", benchE: "sensor.stg_bench_energy",
   co2On: "input_boolean.stg_co2_alert", co2Limit: "input_number.stg_co2_limit",
   pushDev: [["mhh17", "Mike's iPhone", "iPhone 17"], ["mike_m4", "Mike's iPad", "iPad Pro M4"]],
   nStart: "input_datetime.stg_night_start", nEnd: "input_datetime.stg_night_end", wakeStart: "sensor.stg_morning_warm_up_start",
@@ -761,6 +770,7 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
   S(E.away, "5"); S(E.drop, "2"); S(E.boostInc, "2"); S(E.boostDur, "2"); S(E.margin, "1"); S(E.stopBefore, "1"); S(E.boostTimer, "idle");
   S(E.air.kitchen[0], 61); S(E.air.kitchen[1], 1480); S(E.air.bathroom[0], 58); S(E.air.bathroom[1], 820); S(E.air.bedroom[0], 52); S(E.air.bedroom[1], 760); S(E.outT, 8.4);
   S(E.bench, "heat", { current_temperature: 21.5, temperature: 24, hvac_modes: ["off", "heat"], min_temp: 5, max_temp: 40 }); S(E.benchOn, "on"); S(E.benchW, 520); S(E.benchE, 3.2);
+  { const a = new Date(); a.setDate(a.getDate() + 1); a.setHours(7, 0, 0, 0); const o = new Date(a); o.setHours(8); S(E.bPlan, "on"); S(E.bOnAt, haDT(a)); S(E.bOffAt, haDT(o)); S(E.bTemp, 25); S(E.bRep, "Once"); }
   S(E.co2On, "on"); S(E.co2Limit, 1400); for (const [d] of E.pushDev) S(`input_boolean.stg_co2_push_${d}`, "on");
   S(E.nightOn, "off"); S(E.nightEn, "on"); S(E.warming, "off"); S(E.nStart, "22:00:00"); S(E.nEnd, "08:00:00"); S(E.wakeStart, at(1, 5, 10).toISOString());
   S(E.price, "0.4176", { supplier: "Salzburg AG", valid_from: "2026-09-01" });
@@ -916,6 +926,15 @@ function situation() {
 
 /* ---------- bench warmer ---------- */
 const BX = { kind: lsGet("bx.kind") || "week", anchor: new Date(), data: null, req: 0 };
+const BT = { dirty: false };
+const REP = [["Once", "Once"], ["Every day", "Daily"], ["Weekdays", "Weekdays"], ["Weekends", "Weekends"]];
+function benchPlan() {
+  const on = st(E.bPlan) === "on", a = parseHA(st(E.bOnAt)), o = parseHA(st(E.bOffAt)), rep = st(E.bRep) || "Once", temp = num(E.bTemp, 25);
+  const day = d => { const t = new Date(); t.setHours(0, 0, 0, 0); const x = new Date(d); x.setHours(0, 0, 0, 0); const n = Math.round((x - t) / 864e5);
+    return n === 0 ? "Today" : n === 1 ? "Tomorrow" : d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); };
+  const when = a && o ? (rep === "Once" ? `${day(a)}, ${fmtT(a)}–${fmtT(o)}` : `${{ "Every day": "Every day", Weekdays: "Weekdays", Weekends: "Weekends" }[rep]}, ${fmtT(a)}–${fmtT(o)}`) : "";
+  return { on, a, o, rep, temp, when, valid: !!(a && o && o > a && o > new Date()) };
+}
 function renderBench() {
   if (!$("#v-bench") || $("#v-bench").hidden) return;
   const b = bench();
@@ -926,6 +945,16 @@ function renderBench() {
   $("#b-set").innerHTML = `<button data-bstep="-0.5" aria-label="Cooler" ${b.on ? "" : "disabled"}>−</button><output class="num">${t1(b.tgt ?? 0)}°</output><button data-bstep="0.5" aria-label="Warmer" ${b.on ? "" : "disabled"}>+</button>`;
   $("#b-presets").innerHTML = [22, 25, 28].map(v => `<button class="pill" data-bset="${v}" aria-pressed="${b.on && Math.abs((b.tgt ?? 0) - v) < .1}">${v}°</button>`).join("");
   $("#b-watts").textContent = `${Math.round(b.watts)} W`;
+  if (!BT.dirty && !document.activeElement?.closest?.("#b-timer")) {
+    const P = benchPlan(), def = (() => { const a = new Date(); if (a.getHours() >= 7) a.setDate(a.getDate() + 1); a.setHours(7, 0, 0, 0); return a; })();
+    const a = P.a && P.valid ? P.a : def, o = P.o && P.valid ? P.o : new Date(a.getTime() + 3600e3);
+    const hhmm = d => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    $("#b-timer").innerHTML = `<div class="setting" style="border-top:0;padding-top:0"><div><b>Timer</b><p>${P.on && P.valid ? `<span class="tm-on">● ${P.when} · ${t1(P.temp)}°</span>` : "Warm the bench at a set time, e.g. tomorrow morning."}</p></div><label class="switch"><input type="checkbox" id="bt-on" aria-label="Bench timer" ${P.on && P.valid ? "checked" : ""}><span></span></label></div>
+      <div class="bt-grid"><label class="field">Start<input type="datetime-local" id="bt-start" value="${toInput(a)}"></label><label class="field">Off at<input type="time" class="time" id="bt-end" value="${hhmm(o)}"></label></div>
+      <div class="setting"><div><b>Temperature</b></div><div class="stepper sm"><button data-btt="-0.5" aria-label="Cooler">−</button><output class="num" id="bt-temp">${t1(P.temp)}°</output><button data-btt="0.5" aria-label="Warmer">+</button></div></div>
+      <div class="seg seg4 mini" role="group" aria-label="Repeat" id="bt-rep" style="margin-top:12px">${REP.map(([v, l]) => `<button data-btrep="${v}" aria-pressed="${P.rep === v}">${l}</button>`).join("")}</div>
+      <button class="btn" id="bt-save" style="margin-top:14px;width:100%">${P.on && P.valid ? "Update timer" : "Set timer"}</button>`;
+  }
   if (!BX.data) bxLoad(); else bxRender();
 }
 async function bxLoad() {
@@ -1032,7 +1061,7 @@ function renderHome() {
   const ot = num(E.outT, NaN), oel = $("#h-out"); oel.hidden = !Number.isFinite(ot); if (Number.isFinite(ot)) oel.querySelector("b").textContent = `${t1(ot)}°`;
   $("#h-rooms").innerHTML = SHORT.map(([r, n]) => { const x = room(r), bad = Number.isFinite(x.co2) && x.co2 >= co2Limit();
     return `<button data-room="${r}" aria-label="${x.name} ${typeof x.cur === "number" ? t1(x.cur) + " degrees" : ""}, ${x.text}"><span>${n}</span><b class="num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}</b><i class="${bad ? "air" : x.state}"></i></button>`; }).join("");
-  { const b = bench(); $("#h-bench").innerHTML = `<button data-go="bench" class="bench-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h18M5 13V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 13v6M20 13v6M4 17h16"/></svg><span class="bn">Bench warmer<em>${b.on ? `${b.text} · set to ${t1(b.tgt ?? 0)}°` : b.text}</em></span><b class="num">${typeof b.cur === "number" ? t1(b.cur) + "°" : "–"}</b><i class="${b.state}"></i><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>`; }
+  { const b = bench(); $("#h-bench").innerHTML = `<button data-go="bench" class="bench-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h18M5 13V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 13v6M20 13v6M4 17h16"/></svg><span class="bn">Bench warmer<em>${b.on ? `${b.text} · set to ${t1(b.tgt ?? 0)}°` : (() => { const P = benchPlan(); return P.on && P.valid ? `Timer · ${P.when}` : b.text; })()}</em></span><b class="num">${typeof b.cur === "number" ? t1(b.cur) + "°" : "–"}</b><i class="${b.state}"></i><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>`; }
   const stuffy = ROOMS.map(([r]) => room(r)).filter(x => Number.isFinite(x.co2) && x.co2 >= co2Limit());
   const an = $("#h-air"); an.hidden = !stuffy.length;
   if (stuffy.length) { const names = stuffy.map(x => x.name.toLowerCase()), list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names.at(-1) : names[0];
@@ -1082,8 +1111,8 @@ function drawModel() {
   host.querySelector(".m3d-labels").dataset.compact = host.clientWidth < 560 ? "1" : "";
   M.mount(host, { interactive: true });
   const looks = {};
-  for (const [r] of ROOMS) { const x = room(r); looks[r] = { state: x.state, label: typeof x.cur === "number" ? `${t1(x.cur)}°` : "–", name: x.name, selected: sheetRoom === r }; }
-  { const b = bench(); if (b.online) looks.bench = { state: b.state === "hot" ? "hot" : "", label: typeof b.cur === "number" ? `${t1(b.cur)}°` : "–", name: "Bench", small: true, go: "bench" }; }
+  for (const [r] of ROOMS) { const x = room(r); looks[r] = { state: x.state, label: typeof x.cur === "number" ? `${t1(x.cur)}°` : "–", name: x.name, selected: sheetRoom === r, online: x.online, heating: x.heating }; }
+  { const b = bench(); if (states[E.bench]) looks.bench = { state: b.state === "hot" ? "hot" : "", label: typeof b.cur === "number" ? `${t1(b.cur)}°` : "–", name: "Bench", small: true, go: "bench", online: b.online, heating: b.heating }; }
   M.update(looks);
 }
 addEventListener("m3d-ready", () => drawModel());
@@ -1381,7 +1410,7 @@ function go(tab) {
   document.querySelectorAll(".view").forEach(v => v.hidden = v.id !== "v-" + tab);
   lsSet("tab", tab); window.scrollTo(0, 0); render();
   if (tab === "insights") hxLoad();
-  if (tab === "bench") { BX.data = null; renderBench(); }
+  if (tab === "bench") { BX.data = null; BT.dirty = false; renderBench(); }
 }
 
 /* ---------- interaction ---------- */
@@ -1394,6 +1423,21 @@ document.addEventListener("click", async e => {
   if (t.dataset.bstep || t.dataset.bset) { const b = bench(), v = Math.min(40, Math.max(5, t.dataset.bset ? +t.dataset.bset : (b.tgt ?? 20) + parseFloat(t.dataset.bstep)));
     if (!b.on) await call("climate", "set_hvac_mode", { entity_id: E.bench, hvac_mode: "heat" });
     await call("climate", "set_temperature", { entity_id: E.bench, temperature: v }); return toast(`Bench set to ${t1(v)} °C`); }
+  if (t.dataset.btt) { const o = $("#bt-temp"), v = Math.min(40, Math.max(5, parseFloat(o.textContent) + parseFloat(t.dataset.btt))); o.textContent = `${t1(v)}°`; BT.dirty = true; return; }
+  if (t.dataset.btrep) { document.querySelectorAll("#bt-rep button").forEach(x => x.setAttribute("aria-pressed", x === t)); BT.dirty = true; return; }
+  if (t.id === "bt-save") {
+    const a = new Date($("#bt-start").value), [h, m] = ($("#bt-end").value || "").split(":").map(Number);
+    if (isNaN(a) || isNaN(h)) return toast("Pick a start and an end time");
+    const o = new Date(a); o.setHours(h, m, 0, 0); if (o <= a) o.setDate(o.getDate() + 1);
+    if (o <= new Date()) return toast("That time has already passed");
+    const rep = document.querySelector('#bt-rep [aria-pressed="true"]')?.dataset.btrep || "Once", temp = parseFloat($("#bt-temp").textContent);
+    await call("input_datetime", "set_datetime", { entity_id: E.bOnAt, datetime: haDT(a) });
+    await call("input_datetime", "set_datetime", { entity_id: E.bOffAt, datetime: haDT(o) });
+    await call("input_number", "set_value", { entity_id: E.bTemp, value: temp });
+    await call("input_select", "select_option", { entity_id: E.bRep, option: rep });
+    await call("input_boolean", "turn_on", { entity_id: E.bPlan });
+    BT.dirty = false; t.blur(); renderBench(); return toast(`Timer set: ${benchPlan().when || `${fmtT(a)}–${fmtT(o)}`}`);
+  }
   if (t.dataset.bx) { BX.kind = t.dataset.bx; lsSet("bx.kind", BX.kind); BX.anchor = new Date(); return bxLoad(); }
   if (t.id === "bx-prev") return bxShift(-1);
   if (t.id === "bx-next") return bxShift(1);
@@ -1430,6 +1474,8 @@ document.addEventListener("change", async e => {
   const el = e.target;
   if (el.dataset.set !== undefined) { const [id, l] = SETTINGS[el.dataset.set]; await call("input_number", "set_value", { entity_id: id, value: parseFloat(el.value) }); el.blur(); toast(`${l} saved`); }
   if (el.id === "st-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.planned }); toast(el.checked ? "Stay planned" : "Stay switched off"); }
+  if (el.id === "bt-on") { if (el.checked) { el.checked = false; return $("#bt-save").click(); } await call("input_boolean", "turn_off", { entity_id: E.bPlan }); BT.dirty = false; el.blur(); renderBench(); return toast("Timer off"); }
+  if (el.id === "bt-start" || el.id === "bt-end") BT.dirty = true;
   if (el.id === "co2-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.co2On }); toast(el.checked ? "CO₂ alert on" : "CO₂ alert off"); }
   if (el.dataset.push) { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: `input_boolean.stg_co2_push_${el.dataset.push}` }); toast(`${el.checked ? "Pushes" : "No pushes"} to ${E.pushDev.find(x => x[0] === el.dataset.push)[1]}`); }
   if (el.id === "n-en") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.nightEn }); toast(el.checked ? "Night temperatures on" : "Night temperatures off"); }
