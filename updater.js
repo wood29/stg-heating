@@ -10,16 +10,30 @@ import path from "node:path";
 const REPO = "wood29/stg-heating";
 const EVERY = 5 * 60 * 1000;
 
+// Latest commit on main. The git endpoint has no API rate limit (the REST API allows only
+// 60 calls an hour per internet connection, shared by every device at home), so it goes first.
+let lastWarn = 0;
+async function latestSha(log = console.log) {
+  try {
+    const r = await fetch(`https://github.com/${REPO}.git/info/refs?service=git-upload-pack`, { headers: { "User-Agent": "git/2.45 seewaerme" }, signal: AbortSignal.timeout(20000) });
+    if (r.ok) { const m = /([0-9a-f]{40}) refs\/heads\/main\b/.exec(await r.text()); if (m) return m[1]; }
+  } catch {}
+  try {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/commits/main`, { headers: { Accept: "application/vnd.github.sha", "User-Agent": "seewaerme" }, signal: AbortSignal.timeout(20000) });
+    if (r.ok) { const t = (await r.text()).trim(); if (/^[0-9a-f]{40}$/.test(t)) return t; }
+    if (Date.now() - lastWarn > 3600e3) { lastWarn = Date.now(); log(`Update check: GitHub answered ${r.status}`); }
+  } catch (e) { if (Date.now() - lastWarn > 3600e3) { lastWarn = Date.now(); log(`Update check failed: ${e.message}`); } }
+  return null;
+}
+
 export function startUpdater(appDir, log = console.log) {
   if (process.env.AUTO_UPDATE === "0") return;
   const versionFile = path.join(appDir, "VERSION");
   const check = async () => {
     try {
       const have = (await readFile(versionFile, "utf8").catch(() => "")).trim();
-      const r = await fetch(`https://api.github.com/repos/${REPO}/commits/main`, {
-        headers: { Accept: "application/vnd.github.sha", "User-Agent": "seewaerme" }, signal: AbortSignal.timeout(20000) });
-      if (!r.ok) return;
-      const want = (await r.text()).trim();
+      const want = await latestSha();
+      if (!want) return;
       if (!/^[0-9a-f]{40}$/.test(want) || want === have) return;
       log(`Update available: ${have.slice(0, 7) || "unknown"} → ${want.slice(0, 7)}`);
       const t = await fetch(`https://codeload.github.com/${REPO}/tar.gz/${want}`, { signal: AbortSignal.timeout(120000) });
