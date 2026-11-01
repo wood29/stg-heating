@@ -718,7 +718,6 @@ function renderPlan(svg, look, opts = {}) {
     <radialGradient id="glow"><stop offset="0" stop-color="#FF8A3D" stop-opacity=".75"/><stop offset="1" stop-color="#FF8A3D" stop-opacity="0"/></radialGradient></defs>
     <g filter="url(#shadow)">${slab}<polygon class="slab-top" points="${pts(o.map(([x, y]) => [x, y, 0]))}"/>${floors}</g>${glow}${solids}${labels.replaceAll("__K__", K).replace(compact ? /__FULL__[\s\S]*?__\/FULL__/g : /__MINI__[\s\S]*?__\/MINI__/g, "").replace(/__\/?(FULL|MINI)__/g, "")}`;
 }
-
 </script>
 <script>
 /* ---------- Home Assistant entities (St. Gilgen) ---------- */
@@ -740,7 +739,7 @@ const E = {
   nightOn: "binary_sensor.stg_night", nightEn: "input_boolean.stg_night_enabled", warming: "input_boolean.stg_night_warming",
   air: { kitchen: ["sensor.indoor_stg_humidity", "sensor.indoor_stg_carbon_dioxide"], bathroom: ["sensor.indoor_stg_bedroom_humidity", "sensor.indoor_stg_bedroom_carbon_dioxide"], bedroom: ["sensor.indoor_stg_bedroom_humidity_2", "sensor.indoor_stg_bedroom_carbon_dioxide_2"] },
   outT: "sensor.indoor_stg_outdoor_stg_temperature",
-  bench: "climate.bench_warmer", benchOn: "binary_sensor.stg_bench_heating",
+  bench: "climate.bench_warmer", benchOn: "binary_sensor.stg_bench_heating", bSw: "input_boolean.stg_bench_switch",
   bPlan: "input_boolean.stg_bench_plan", bOnAt: "input_datetime.stg_bench_on", bOffAt: "input_datetime.stg_bench_off", bTemp: "input_number.stg_bench_plan_temp", bRep: "input_select.stg_bench_repeat", benchW: "input_number.stg_bench_power", benchE: "sensor.stg_bench_energy",
   co2On: "input_boolean.stg_co2_alert", co2Limit: "input_number.stg_co2_limit",
   pushDev: [["mhh17", "Mike's iPhone", "iPhone 17"], ["mike_m4", "Mike's iPad", "iPad Pro M4"]],
@@ -769,7 +768,7 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
   S(E.gap, "0.3"); S(E.preheat, "1.6"); S(E.rate, "0.55"); S(E.last, "");
   S(E.away, "5"); S(E.drop, "2"); S(E.boostInc, "2"); S(E.boostDur, "2"); S(E.margin, "1"); S(E.stopBefore, "1"); S(E.boostTimer, "idle");
   S(E.air.kitchen[0], 61); S(E.air.kitchen[1], 1480); S(E.air.bathroom[0], 58); S(E.air.bathroom[1], 820); S(E.air.bedroom[0], 52); S(E.air.bedroom[1], 760); S(E.outT, 8.4);
-  S(E.bench, "heat", { current_temperature: 21.5, temperature: 24, hvac_modes: ["off", "heat"], min_temp: 5, max_temp: 40 }); S(E.benchOn, "on"); S(E.benchW, 520); S(E.benchE, 3.2);
+  S(E.bench, "heat", { current_temperature: 21.5, temperature: 24, hvac_modes: ["off", "heat"], min_temp: 5, max_temp: 40 }); S(E.benchOn, "on"); S(E.bSw, "on"); S(E.benchW, 520); S(E.benchE, 3.2);
   { const a = new Date(); a.setDate(a.getDate() + 1); a.setHours(7, 0, 0, 0); const o = new Date(a); o.setHours(8); S(E.bPlan, "on"); S(E.bOnAt, haDT(a)); S(E.bOffAt, haDT(o)); S(E.bTemp, 25); S(E.bRep, "Once"); }
   S(E.co2On, "on"); S(E.co2Limit, 1400); for (const [d] of E.pushDev) S(`input_boolean.stg_co2_push_${d}`, "on");
   S(E.nightOn, "off"); S(E.nightEn, "on"); S(E.warming, "off"); S(E.nStart, "22:00:00"); S(E.nEnd, "08:00:00"); S(E.wakeStart, at(1, 5, 10).toISOString());
@@ -798,7 +797,7 @@ async function call(domain, service, data) {
   }
   const id = data.entity_id;
   if (domain === "input_select") { S(id, data.option); demoMode(data.option); }
-  else if (domain === "climate" && id === E.bench) { const c = demo[E.bench]; if (service === "set_hvac_mode") c.state = data.hvac_mode; else c.attributes = { ...c.attributes, temperature: data.temperature }; S(E.benchOn, c.state === "heat" && c.attributes.current_temperature < c.attributes.temperature ? "on" : "off"); }
+  else if (domain === "climate" && id === E.bench) { const c = demo[E.bench]; if (service === "set_hvac_mode") { c.state = data.hvac_mode; S(E.bSw, data.hvac_mode === "heat" ? "on" : "off"); } else c.attributes = { ...c.attributes, temperature: data.temperature }; S(E.benchOn, c.state === "heat" && c.attributes.current_temperature < c.attributes.temperature ? "on" : "off"); }
   else if (domain === "climate") setTarget(id.split(".")[1].replace("_floor_heating", ""), data.temperature);
   else if (domain === "number" || domain === "input_number") { S(id, data.value, states[id]?.attributes); if (domain === "number") { const r = id.split(".")[1].replace("_floor_heating_comfort_temperature", ""); if (st(E.mode) === "Home" || st(E.mode) === "Auto") setTarget(r, data.value); } }
   else if (domain === "input_datetime") { S(id, data.datetime || data.time); demoStay(); }
@@ -867,8 +866,10 @@ function warmBy() {
   if (st(E.warming) === "on") return hm(st(E.nEnd));
   return "";
 }
+// show the switch at once; Home Assistant confirms through the "StG bench switched on" helper
+function benchLocal(on) { states[E.bSw] = { ...(states[E.bSw] || { entity_id: E.bSw, attributes: {} }), state: on ? "on" : "off" }; renderBench(); }
 function bench() {
-  const c = states[E.bench], on = c?.state === "heat", cur = c?.attributes?.current_temperature, tgt = c?.attributes?.temperature;
+  const c = states[E.bench], on = c?.state === "heat" || st(E.bSw) === "on", cur = c?.attributes?.current_temperature, tgt = c?.attributes?.temperature;
   const online = !!c && c.state !== "unavailable", heating = st(E.benchOn) === "on";
   const state = !online ? "off" : !on ? "idle" : heating ? "hot" : "ok";
   const text = { off: "Offline", idle: "Off", hot: "Warming up", ok: "Warm" }[state];
@@ -942,7 +943,7 @@ function renderBench() {
   $("#b-dot").className = b.state === "hot" ? "hot" : b.state === "ok" ? "" : "low"; $("#b-status").textContent = b.text;
   $("#b-sub").textContent = !b.online ? "The thermostat isn't reachable right now." : b.on ? (b.heating ? `Warming the bench to ${t1(b.tgt)} °C, about ${b.watts} W while it heats.` : `Holding ${t1(b.tgt)} °C. It switches on again when the bench cools.`) : "Switched off. Tap On to warm the bench.";
   $("#b-power").innerHTML = [["off", "Off"], ["heat", "On"]].map(([v, l]) => `<button data-bmode="${v}" aria-pressed="${(b.on ? "heat" : "off") === v}">${l}</button>`).join("");
-  $("#b-set").innerHTML = `<button data-bstep="-0.5" aria-label="Cooler" ${b.on ? "" : "disabled"}>−</button><output class="num">${t1(b.tgt ?? 0)}°</output><button data-bstep="0.5" aria-label="Warmer" ${b.on ? "" : "disabled"}>+</button>`;
+  $("#b-set").innerHTML = `<button data-bstep="-0.5" aria-label="Cooler">−</button><output class="num">${t1(b.tgt ?? 0)}°</output><button data-bstep="0.5" aria-label="Warmer">+</button>`;
   $("#b-presets").innerHTML = [22, 25, 28].map(v => `<button class="pill" data-bset="${v}" aria-pressed="${b.on && Math.abs((b.tgt ?? 0) - v) < .1}">${v}°</button>`).join("");
   $("#b-watts").textContent = `${Math.round(b.watts)} W`;
   if (!BT.dirty && !document.activeElement?.closest?.("#b-timer")) {
@@ -1419,9 +1420,10 @@ document.addEventListener("click", async e => {
   if (!t) { if (e.target === $("#sheet")) $("#sheet").close(); return; }
   if (t.dataset.tab) return go(t.dataset.tab);
   if (t.dataset.hx) { HX.kind = t.dataset.hx; lsSet("hx.kind", HX.kind); HX.anchor = new Date(); return hxLoad(); }
-  if (t.dataset.bmode) { await call("climate", "set_hvac_mode", { entity_id: E.bench, hvac_mode: t.dataset.bmode }); return toast(t.dataset.bmode === "heat" ? "Bench warmer on" : "Bench warmer off"); }
+  if (t.dataset.bmode) { benchLocal(t.dataset.bmode === "heat"); await call("climate", "set_hvac_mode", { entity_id: E.bench, hvac_mode: t.dataset.bmode }); return toast(t.dataset.bmode === "heat" ? "Bench warmer on" : "Bench warmer off"); }
   if (t.dataset.bstep || t.dataset.bset) { const b = bench(), v = Math.min(40, Math.max(5, t.dataset.bset ? +t.dataset.bset : (b.tgt ?? 20) + parseFloat(t.dataset.bstep)));
-    if (!b.on) await call("climate", "set_hvac_mode", { entity_id: E.bench, hvac_mode: "heat" });
+    if (!b.on) { benchLocal(true); await call("climate", "set_hvac_mode", { entity_id: E.bench, hvac_mode: "heat" }); }
+    if (states[E.bench]) { states[E.bench] = { ...states[E.bench], attributes: { ...states[E.bench].attributes, temperature: v } }; renderBench(); }
     await call("climate", "set_temperature", { entity_id: E.bench, temperature: v }); return toast(`Bench set to ${t1(v)} °C`); }
   if (t.dataset.btt) { const o = $("#bt-temp"), v = Math.min(40, Math.max(5, parseFloat(o.textContent) + parseFloat(t.dataset.btt))); o.textContent = `${t1(v)}°`; BT.dirty = true; return; }
   if (t.dataset.btrep) { document.querySelectorAll("#bt-rep button").forEach(x => x.setAttribute("aria-pressed", x === t)); BT.dirty = true; return; }
@@ -1488,5 +1490,4 @@ go(location.hash.slice(1) || lsGet("tab") || "home");
 let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 150); });
 goLive().catch(console.warn);
 setInterval(() => { if (!live) renderHome(); }, 60e3);
-
 </script>

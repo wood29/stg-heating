@@ -206,19 +206,21 @@ const BENCH_STAT = "sensor.stg_bench_energy";
 // A session switches the bench on at "StG bench on" to "StG bench plan temp" and off at "StG bench off";
 // "StG bench repeat" (Once / Every day / Weekdays / Weekends) moves both times on after each session.
 const BENCH_AUTO_ID = "stg_bench_planned_session";
+const BENCH_SWITCH = "input_boolean.stg_bench_switch";
 let benchTimerDone = false;
 async function ensureBenchTimer() {
   if (benchTimerDone) return; benchTimerDone = true;
   const mk = async (type, body, id) => { if (states[id]) return; await haSend({ type, ...body }).then(() => console.log(`Created ${id}`)).catch(e => console.error(`${id}:`, e.message)); };
   await mk("input_boolean/create", { name: "StG bench plan", icon: "mdi:timer-outline" }, "input_boolean.stg_bench_plan");
+  // The Tuya thermostat never reports its power state to Home Assistant (climate.bench_warmer always reads "off"),
+  // so the app keeps the last command here: switched on from the app, the timer or Home Assistant.
+  await mk("input_boolean/create", { name: "StG bench switched on", icon: "mdi:radiator" }, BENCH_SWITCH);
   await mk("input_datetime/create", { name: "StG bench on", has_date: true, has_time: true, icon: "mdi:clock-start" }, "input_datetime.stg_bench_on");
   await mk("input_datetime/create", { name: "StG bench off", has_date: true, has_time: true, icon: "mdi:clock-end" }, "input_datetime.stg_bench_off");
   await mk("input_number/create", { name: "StG bench plan temp", min: 5, max: 40, step: 0.5, initial: 25, mode: "box", unit_of_measurement: "°C", icon: "mdi:thermometer" }, "input_number.stg_bench_plan_temp");
   await mk("input_select/create", { name: "StG bench repeat", options: ["Once", "Every day", "Weekdays", "Weekends"], initial: "Once", icon: "mdi:repeat" }, "input_select.stg_bench_repeat");
   const url = `${HA_URL}/api/config/automation/config/${BENCH_AUTO_ID}`, H = { Authorization: `Bearer ${HA_TOKEN}`, "Content-Type": "application/json" };
   try {
-    const have = await fetch(url, { headers: H, signal: AbortSignal.timeout(15000) });
-    if (have.ok) return;
     const nextDays = "{% set on_dt = states('input_datetime.stg_bench_on') | as_datetime %}{% set rep = states('input_select.stg_bench_repeat') %}{% set ns = namespace(n=0) %}{% for i in range(1, 8) %}{% set wd = (on_dt + timedelta(days=i)).weekday() %}{% if ns.n == 0 and (rep == 'Every day' or (rep == 'Weekdays' and wd < 5) or (rep == 'Weekends' and wd >= 5)) %}{% set ns.n = i %}{% endif %}{% endfor %}{{ ns.n }}";
     const shift = id => ({ action: "input_datetime.set_datetime", target: { entity_id: id }, data: { datetime: `{{ ((states('${id}') | as_datetime) + timedelta(days=n | int)).strftime('%Y-%m-%d %H:%M:%S') }}` } });
     const body = {
@@ -229,17 +231,21 @@ async function ensureBenchTimer() {
       conditions: [{ condition: "state", entity_id: "input_boolean.stg_bench_plan", state: "on" }],
       actions: [{ choose: [
         { conditions: [{ condition: "trigger", id: "on" }], sequence: [
+          { action: "climate.turn_on", target: { entity_id: "climate.bench_warmer" } },
           { action: "climate.set_hvac_mode", target: { entity_id: "climate.bench_warmer" }, data: { hvac_mode: "heat" } },
+          { action: "input_boolean.turn_on", target: { entity_id: BENCH_SWITCH } },
           { delay: { seconds: 3 } },
           { action: "climate.set_temperature", target: { entity_id: "climate.bench_warmer" }, data: { temperature: "{{ states('input_number.stg_bench_plan_temp') | float(25) }}" } }] },
         { conditions: [{ condition: "trigger", id: "off" }], sequence: [
+          { action: "climate.turn_off", target: { entity_id: "climate.bench_warmer" } },
           { action: "climate.set_hvac_mode", target: { entity_id: "climate.bench_warmer" }, data: { hvac_mode: "off" } },
+          { action: "input_boolean.turn_off", target: { entity_id: BENCH_SWITCH } },
           { if: [{ condition: "state", entity_id: "input_select.stg_bench_repeat", state: "Once" }],
             then: [{ action: "input_boolean.turn_off", target: { entity_id: "input_boolean.stg_bench_plan" } }],
             else: [{ variables: { n: nextDays } }, shift("input_datetime.stg_bench_on"), shift("input_datetime.stg_bench_off")] }] }] }],
     };
     const r = await fetch(url, { method: "POST", headers: H, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
-    console.log(r.ok ? "Created automation 'StG bench: planned session'" : `Bench timer automation: HTTP ${r.status} ${await r.text()}`);
+    console.log(r.ok ? "Bench timer automation up to date" : `Bench timer automation: HTTP ${r.status} ${await r.text()}`);
   } catch (e) { console.error("Bench timer automation:", e.message); }
 }
 
@@ -341,7 +347,13 @@ const server = http.createServer(async (req, res) => {
       for await (const chunk of req) { body += chunk; if (body.length > 4096) return json(res, 413, { error: "Request too large" }); }
       let p; try { p = JSON.parse(body); } catch { return json(res, 400, { error: "Invalid request" }); }
       if (!allowed(p.domain, p.service, p.data)) return json(res, 403, { error: "That control is not available in this app." });
-      await haSend({ type: "call_service", domain: p.domain, service: p.service, service_data: p.data });
+      if (p.domain === "climate" && p.service === "set_hvac_mode" && p.data.entity_id === "climate.bench_warmer") {
+        // power: the Tuya thermostat listens to turn_on/turn_off; set_hvac_mode alone doesn't always reach it
+        const on = p.data.hvac_mode === "heat";
+        await haSend({ type: "call_service", domain: "climate", service: on ? "turn_on" : "turn_off", service_data: { entity_id: p.data.entity_id } }).catch(() => {});
+        await haSend({ type: "call_service", domain: "climate", service: "set_hvac_mode", service_data: p.data }).catch(() => {});
+        if (states[BENCH_SWITCH]) await haSend({ type: "call_service", domain: "input_boolean", service: on ? "turn_on" : "turn_off", service_data: { entity_id: BENCH_SWITCH } });
+      } else await haSend({ type: "call_service", domain: p.domain, service: p.service, service_data: p.data });
       console.log(`${who(req) || "local"}: ${p.domain}.${p.service} ${JSON.stringify(p.data)}`);
       return json(res, 200, { ok: true });
     }
