@@ -1374,7 +1374,7 @@ function hxChart(el, R, o) {
     b.toLocaleDateString("en-GB", { month: W < 520 ? "narrow" : "short" }); };
   for (let i = 0; i < n; i++) { const t = lab(i); if (t) svg += `<text class="ax" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${t}</text>`; }
   // bars
-  if (o.bars) o.bars.vals.forEach((v, i) => { if (v == null || v <= 0) return; // no bar when nothing was used const h = Math.max(1.5, yL(0) - yL(v)), w = Math.max(2, Math.min(bw * .64, 28));
+  if (o.bars) o.bars.vals.forEach((v, i) => { if (v == null || v <= 0) return; /* no bar when nothing was used */ const h = Math.max(1.5, yL(0) - yL(v)), w = Math.max(2, Math.min(bw * .64, 28));
     svg += `<rect class="bar${o.bars.est?.[i] ? " est" : ""}" x="${(x(i) - w / 2).toFixed(1)}" y="${(yL(0) - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(4, w / 3).toFixed(1)}"/>`; });
   // lines
   const Y = o.bars ? yR : yL;
