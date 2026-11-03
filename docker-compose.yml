@@ -17,7 +17,7 @@ services:
       ALLOWED_USERS: ""
 
 # ---------------------------------------------------------------------------
-# Wien Wärme (Vienna): the same app and image, started with bridge.js.
+# Wien Wärme (Vienna): the same app and image; BRIDGE_URL/BRIDGE_PASSWORD make it start as Wien Wärme.
 # Create it as a second application in Container Station and paste only this part
 # (with the "services:" line). It talks to the Intellihome bridge on the Home
 # Assistant Green; the bridge keeps running the plans whether or not this app runs.
@@ -28,9 +28,8 @@ services:
 #     container_name: wien-waerme
 #     restart: unless-stopped
 #     pull_policy: always
-#     command: ["node", "bridge.js"]
 #     ports:
 #       - "8796:8080"   (8794 is the Health app)
 #     environment:
 #       BRIDGE_URL: "http://192.168.178.149:8098"
-#       BRIDGE_PASSWORD: "type the bridge's panel password here"
+#       BRIDGE_PASSWORD: 'type the panel password here'   # single quotes; write a $ as $$
