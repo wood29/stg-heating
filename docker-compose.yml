@@ -30,7 +30,7 @@ services:
 #     pull_policy: always
 #     command: ["node", "bridge.js"]
 #     ports:
-#       - "8794:8080"
+#       - "8796:8080"   (8794 is the Health app)
 #     environment:
 #       BRIDGE_URL: "http://192.168.178.149:8098"
 #       BRIDGE_PASSWORD: "type the bridge's panel password here"
