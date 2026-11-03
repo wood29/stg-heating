@@ -27,14 +27,17 @@ process.on("uncaughtException", e => console.error("Unexpected error (app keeps 
 process.on("unhandledRejection", e => console.error("Unexpected error (app keeps running):", e));
 
 // ---------------------------------------------------------------- bridge API
-let cookie = "";
+let cookie = "", rejectedUntil = 0;
 async function login() {
   if (!PASSWORD) throw new Error("BRIDGE_PASSWORD is not set");
+  // after a wrong password, wait before trying again (never hammer the bridge's sign-in)
+  if (Date.now() < rejectedUntil) throw new Error("the bridge rejected the password");
   const r = await fetch(BRIDGE + "/api/login", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password: PASSWORD }), signal: AbortSignal.timeout(15000),
   });
-  if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? "the bridge rejected the password" : `login failed (HTTP ${r.status})`);
+  if (r.status === 401 || r.status === 403) { rejectedUntil = Date.now() + 5 * 60e3; throw new Error("the bridge rejected the password"); }
+  if (!r.ok) throw new Error(`login failed (HTTP ${r.status})`);
   const set = r.headers.getSetCookie?.() || [r.headers.get("set-cookie")].filter(Boolean);
   cookie = set.map(c => c.split(";")[0]).join("; ");
   console.log("Signed in to the Intellihome bridge");

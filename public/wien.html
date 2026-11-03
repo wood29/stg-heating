@@ -794,7 +794,7 @@ const DEMO = (() => {
 })();
 
 /* ---------- data ---------- */
-let D = DEMO, live = false, up = false;
+let D = DEMO, live = false, up = false, bridgeErr = null;
 const pending = new Map();      // slug -> { value, t }   target changes waiting 1.2 s for more taps
 let plan = { room: lsGet("plan.room"), rules: null, dirty: false };
 
@@ -882,7 +882,7 @@ function nudge(slug, d) {
 function render() {
   for (const id of ["#conn-top", "#conn-rail"]) {
     const el = $(id); el.classList.toggle("live", live && up);
-    el.querySelector("span").textContent = !live ? "Example data" : up ? "Live" : "Reconnecting";
+    el.querySelector("span").textContent = bridgeErr ? "Not connected" : !live ? "Example data" : up ? "Live" : "Reconnecting";
   }
   if (!D.house) return;
   renderHome(); renderRooms(); renderPlan(); renderSettings(); renderInsightsSide();
@@ -900,8 +900,8 @@ function renderHome() {
   $("#h-status").textContent = title; $("#h-dot").className = tone === "ok" ? "" : tone;
   $("#h-sub").textContent = away ? "Weekly plans are paused; every room holds its temperature." :
     warming.length ? `Warming the ${list(warming)} for the next plan time.` : heating.length ? `Heating the ${list(heating)}.` : on.length ? "Every heated room is at its temperature." : "Heating is off in every room.";
-  const why = live ? canWrite() : null, al = $("#h-alert"); al.hidden = !why;
-  if (why) al.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3 2 20h20zM12 10v4M12 17h.01"/></svg><span><b>Changes are on hold</b><br><em>${esc(why)}</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>`;
+  const why = bridgeErr ? `The app can't reach the heating bridge: ${bridgeErr}. Showing example data.` : live ? canWrite() : null, al = $("#h-alert"); al.hidden = !why;
+  if (why) al.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3 2 20h20zM12 10v4M12 17h.01"/></svg><span><b>${bridgeErr ? "Not connected" : "Changes are on hold"}</b><br><em>${esc(why)}</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>`;
   $("#h-facts").innerHTML = `<span><b class="num">${on.length}</b> of ${zs.length} rooms heated</span>`;
   $("#h-rooms").innerHTML = zs.map(z => `<button data-zone="${z.slug}" aria-label="${z.name} ${z.temp != null ? t1(z.temp) + " degrees" : ""}, ${z.text}"><span>${z.short}</span><b class="num">${z.temp != null ? t1(z.temp) + "°" : "–"}</b><i class="${z.off ? "off" : z.state}"></i></button>`).join("");
   $("#seg").innerHTML = [["plans", "Plans"], ["away", "Away"]].map(([v, l]) => `<button data-away="${v === "away"}" aria-pressed="${(v === "away") === !!away}">${l}</button>`).join("");
@@ -1138,6 +1138,7 @@ async function goLive() {
   es.addEventListener("snapshot", e => {
     const d = JSON.parse(e.data); up = d.connected;
     if (d.house) { D = d; live = true; }
+    bridgeErr = d.house ? null : d.error;
     soon();
   });
   es.onerror = () => { up = false; soon(); };
