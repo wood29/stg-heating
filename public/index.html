@@ -315,7 +315,7 @@ h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
 .fv-img{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none}
 .fv-heat{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .fv-room{fill:transparent;stroke:transparent;stroke-width:2.5;vector-effect:non-scaling-stroke;stroke-linejoin:round;cursor:pointer;mix-blend-mode:multiply;transition:fill .5s ease,stroke .2s ease}
-.fv-room.hot{fill:rgba(255,110,40,.34)} .fv-room.low{fill:rgba(61,143,184,.34)} .fv-room.off{fill:rgba(110,110,110,.26)}
+.fv-room.hot{fill:rgba(255,110,40,.34)} .fv-room.low{fill:transparent} .fv-room.off{fill:rgba(110,110,110,.16)}
 @media (hover:hover){.fv-room:not(.hot):not(.low):not(.off):hover{fill:rgba(255,179,107,.12)}}
 .fv-room.sel{stroke:var(--ink);mix-blend-mode:normal;fill-opacity:.9}
 .m3d-hint{position:absolute;right:10px;bottom:8px;font-size:11px;color:var(--ink-3);pointer-events:none}
@@ -595,7 +595,7 @@ input[type="range"]{accent-color:var(--accent)}
       <div class="page-h"><div class="eyebrow">Rooms</div><h1>The flat, room by room</h1></div>
       <div class="g-rooms">
         <div class="card flat"><div class="plan"><div class="m3d" id="m3d-rooms"><div class="m3d-labels"></div></div><svg id="plan-rooms" role="img" aria-label="Floor plan; tap a room to change it"></svg></div>
-          <div class="legend" aria-hidden="true"><span><i style="background:var(--f-hot)"></i>Heating</span><span><i style="background:var(--f-ok)"></i>Comfortable</span><span><i style="background:var(--f-low)"></i>Lowered</span><span><i style="background:var(--ok);border-radius:50%"></i>Online</span><span><i style="background:var(--bad);border-radius:50%"></i>Offline</span><span><b style="color:var(--ember);font-weight:600">↑</b>&nbsp;Heating now</span></div></div>
+          <div class="legend" aria-hidden="true"><span><i style="background:rgba(255,110,40,.55)"></i>Heating</span><span><i style="background:var(--ok);border-radius:50%"></i>Online</span><span><i style="background:var(--bad);border-radius:50%"></i>Offline</span><span><b style="color:var(--ember);font-weight:600">↑</b>&nbsp;Heating now</span></div></div>
         <div class="card rooms-card"><div class="rooms" id="rooms"></div></div>
       </div>
     </section>
