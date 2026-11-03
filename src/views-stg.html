@@ -1,0 +1,125 @@
+    <!-- HOME -->
+    <section class="view" id="v-home" aria-label="Home">
+      <div class="g-home">
+          <div style="grid-area:hero" class="hero brand-hero">
+            <div class="row"><div class="eyebrow" id="h-eyebrow">St. Gilgen</div><div class="people" id="h-people"></div></div>
+            <div class="temp-row"><div class="temp num" id="h-temp">–</div><div class="outside" id="h-out" hidden><span>Outside</span><b class="num"></b></div></div>
+            <div class="status"><i id="h-dot"></i><span id="h-status">–</span></div>
+            <p class="sub" id="h-sub"></p>
+            <button class="air-note" id="h-air" data-go="rooms" hidden></button>
+            <div class="facts" id="h-facts"></div>
+          </div>
+          <div style="grid-area:strip" class="strip-wrap"><div class="card strip" id="h-rooms" aria-label="Room temperatures"></div><div class="card bench-card" id="h-bench"></div></div>
+          <div style="grid-area:ctrl" class="ctrl">
+            <div class="seg" role="group" aria-label="Heating mode" id="seg"></div>
+            <p class="mode-note" id="mode-note"></p>
+            <div class="pills">
+              <button class="pill" id="p-boost" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22c4 0 7-3 7-7 0-5-5-7-5-12-3 2-4 5-4 7-1-1-2-2-2-4-2 2-3 5-3 9 0 4 3 7 7 7z"/></svg><span id="p-boost-t">Boost</span></button>
+              <button class="pill" id="p-frost" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20M4 6l16 12M20 6L4 18"/></svg>Frost only</button>
+            </div>
+          </div>
+          <div style="grid-area:wx" class="card wx" id="wx" hidden></div>
+          <div style="grid-area:today" class="card today" id="today" hidden></div>
+          <div style="grid-area:stay" class="card">
+            <div class="card-h"><h2>Stay</h2><button class="link" data-go="stay">Plan</button></div>
+            <div id="h-stay"></div>
+          </div>
+      </div>
+    </section>
+
+    <!-- ROOMS -->
+    <section class="view" id="v-rooms" hidden aria-label="Rooms">
+      <div class="page-h"><div class="eyebrow">Rooms</div><h1>The flat, room by room</h1></div>
+      <div class="g-rooms">
+        <div class="card flat"><div class="plan"><div class="m3d" id="m3d-rooms"><div class="m3d-labels"></div></div><svg id="plan-rooms" role="img" aria-label="Floor plan; tap a room to change it"></svg></div>
+          <div class="legend" aria-hidden="true"><span><i style="background:rgba(255,110,40,.55)"></i>Heating</span><span><i style="background:var(--ok);border-radius:50%"></i>Online</span><span><i style="background:var(--bad);border-radius:50%"></i>Offline</span><span><b style="color:var(--ember);font-weight:600">↑</b>&nbsp;Heating now</span></div></div>
+        <div class="card rooms-card"><div class="rooms" id="rooms"></div></div>
+      </div>
+    </section>
+
+    <!-- STAY -->
+    <section class="view" id="v-bench" hidden aria-label="Bench warmer">
+      <div class="page-h"><div class="eyebrow">Dining room</div><h1>Bench warmer</h1></div>
+      <div class="g-two">
+        <div class="stack">
+          <div class="hero bench-hero">
+            <div class="temp num" id="b-temp">–</div>
+            <div class="status"><i id="b-dot"></i><span id="b-status">–</span></div>
+            <p class="sub" id="b-sub"></p>
+          </div>
+          <div class="card">
+            <div class="setting"><div><b>Bench heating</b></div><div class="seg seg2 mini" role="group" aria-label="Bench heating on or off" id="b-power"></div></div>
+            <div class="setting"><div><b>Temperature</b><p>On the bench surface</p></div><div class="stepper" id="b-set"></div></div>
+            <div class="pills" id="b-presets" style="padding-top:12px"></div>
+          </div>
+          <div class="card" id="b-timer"></div>
+          <div class="card"><div class="setting" style="border-top:0"><div><b>Heater power</b><p>Energy and cost are counted from the heating time.</p></div><output class="num kv-fixed" id="b-watts">520 W</output></div></div>
+        </div>
+        <div class="stack">
+          <div class="hx-bar bx-bar">
+            <div class="seg seg4" role="group" aria-label="Period" id="bx-seg"><button data-bx="day">Day</button><button data-bx="week">Week</button><button data-bx="month">Month</button><button data-bx="year">Year</button></div>
+            <div class="hx-nav"><button id="bx-prev" aria-label="Previous period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><b id="bx-label" aria-live="polite">–</b><button id="bx-next" aria-label="Next period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button></div>
+          </div>
+          <div class="stats stats3 hx-kpis" id="bx-kpis"></div>
+          <div class="card hx-card"><div class="card-h"><h2>Energy</h2><span class="small muted">from heating time at 520 W</span></div><div class="hx-chart" id="bx-chart"></div>
+            <div class="legend"><span><i style="background:var(--c-activity)"></i>kWh</span><span><i style="background:var(--c-measured)"></i>Bench °C</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="v-stay" hidden aria-label="Stays">
+      <div class="page-h"><div class="eyebrow">Stays</div><h1>Arrive warm, leave it cold</h1><p class="sub">Heating starts by itself early enough for your arrival. While you're here, going out lowers each room a little. From departure the flat holds 5 °C.</p></div>
+      <div class="g-two">
+        <div class="card stack">
+          <div class="row"><b style="font-weight:500">Stay planned</b><label class="switch"><input type="checkbox" id="st-on" aria-label="Stay planned"><span></span></label></div>
+          <label class="field" for="st-arr">Arrival<input type="datetime-local" id="st-arr"></label>
+          <label class="field" for="st-dep">Departure<input type="datetime-local" id="st-dep"></label>
+          <p class="note" id="st-check"></p>
+          <div class="btns"><button class="btn" id="st-save">Save stay</button><button class="btn ghost" id="st-cancel">Cancel stay</button></div>
+        </div>
+        <div class="stack">
+          <div class="card"><div class="card-h"><h2>What will happen</h2></div><dl class="kv" id="st-plan"></dl></div>
+          <div class="card stack">
+            <div class="card-h" style="margin:0"><h2>Leaving for good?</h2></div>
+            <p class="note">Ends the stay now and lowers every room to the away temperature until the next stay.</p>
+            <div class="btns"><button class="btn ghost" id="st-leave">Lower the flat now</button></div>
+            <div class="confirm" id="st-confirm" hidden><p style="margin:0">Lower all rooms to <b id="st-away">5 °C</b> now?</p><div class="btns"><button class="btn warm" id="st-leave-yes">Yes, lower now</button><button class="btn ghost" id="st-leave-no">Not yet</button></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSIGHTS -->
+    <section class="view" id="v-insights" hidden aria-label="Insights">
+      <div class="page-h"><div class="eyebrow">Insights</div><h1>Heating over time</h1></div>
+      <div class="hx-bar">
+        <div class="seg seg4" role="group" aria-label="Period" id="hx-seg"><button data-hx="day">Day</button><button data-hx="week">Week</button><button data-hx="month">Month</button><button data-hx="year">Year</button></div>
+        <div class="hx-nav"><button id="hx-prev" aria-label="Previous period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><b id="hx-label" aria-live="polite">–</b><button id="hx-next" aria-label="Next period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button></div>
+      </div>
+      <div class="stats hx-kpis" id="hx-kpis"></div>
+      <div class="card hx-card"><div class="card-h"><h2>Electricity</h2><span class="small muted" id="hx-e-note"></span></div><div class="hx-chart" id="hx-energy"></div>
+        <div class="legend"><span><i style="background:var(--c-activity)"></i>kWh</span><span><i class="est-key"></i>estimated cost basis</span><span><i style="background:var(--s-out)"></i>Outside °C</span></div></div>
+      <div class="g-two">
+        <div class="card hx-card"><div class="card-h"><h2>Temperatures</h2><span class="small muted">dashed: floor</span></div><div class="chips" id="hx-tchips"></div><div class="hx-chart" id="hx-temp"></div></div>
+        <div class="card hx-card"><div class="card-h"><h2>Air</h2><div class="seg seg2 mini" role="group" aria-label="Humidity or CO2" id="hx-air-seg"><button data-hxair="hum">Humidity</button><button data-hxair="co2">CO₂</button></div></div><div class="hx-chart" id="hx-air"></div><div class="legend" id="hx-air-legend"></div></div>
+      </div>
+      <div class="g-two">
+        <div class="stack"><div class="card"><div class="card-h"><h2>Heating by room</h2><span class="small muted num" id="in-price"></span></div><div id="ebars"></div></div><div class="card"><div class="card-h"><h2>Heating curve</h2></div><p class="note" id="in-curve"></p></div></div>
+        <div class="card"><div class="card-h"><h2>Thermostats</h2></div><dl class="kv" id="health"></dl><p class="note" id="health-note" style="margin-top:12px"></p></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="v-settings" hidden aria-label="Settings">
+      <div class="page-h"><div class="eyebrow">Settings</div><h1>House rules</h1><p class="sub">They apply to Auto and the quick actions, straight away.</p></div>
+      <div class="g-two">
+        <div class="card" id="settings"></div>
+        <div class="stack">
+          <div class="card"><div class="card-h"><h2>Temperatures</h2></div><div id="comfort"></div></div>
+          <div class="card"><div class="card-h"><h2>Night</h2></div><div id="night"></div></div>
+          <div class="card"><div class="card-h"><h2>Fresh air</h2></div><div id="co2set"></div></div>
+          <div class="card"><div class="setting" style="display:block"><div style="margin-bottom:12px"><b>Appearance</b><p>Auto follows this device's light or dark setting.</p></div><div class="seg seg3" role="group" aria-label="Appearance" id="theme-seg"></div></div></div>
+          <div class="card"><div class="setting"><div><b>Open-window detection</b><p>A thermostat pauses when the room cools quickly, e.g. while airing.</p></div><label class="switch"><input type="checkbox" id="set-window" aria-label="Open-window detection"><span></span></label></div></div>
+        </div>
+      </div>
+    </section>
