@@ -45,8 +45,8 @@ export function startUpdater(appDir, log = console.log) {
       await rm(stage, { recursive: true, force: true });
       for (const [p, data] of keep) { const f = path.join(stage, p); await mkdir(path.dirname(f), { recursive: true }); await writeFile(f, data); }
       // never install a server that doesn't even parse
-      const ok = await new Promise(res => execFile(process.execPath, ["--check", path.join(stage, "server.js")], e => res(!e)));
-      if (!ok) { await rm(stage, { recursive: true, force: true }); return log("Update skipped: new server.js has a syntax error"); }
+      const check = f => new Promise(res => execFile(process.execPath, ["--check", path.join(stage, f)], e => res(!e)));
+      for (const [f] of keep.filter(([p]) => /^[a-z0-9_-]+\.js$/i.test(p))) if (!(await check(f))) { await rm(stage, { recursive: true, force: true }); return log(`Update skipped: new ${f} has a syntax error`); }
       await rm(path.join(appDir, ".old"), { recursive: true, force: true });
       await rename(path.join(appDir, "public"), path.join(appDir, ".old"));
       await rename(path.join(stage, "public"), path.join(appDir, "public"));

@@ -6,7 +6,7 @@
 // panel password (kept here, never sent to the browser), forwards the heating data to the browser
 // (Server-Sent Events) and passes on only the heating controls checked below.
 //
-// Start with:  node bridge.js   (HOME is Vienna; server.js is St. Gilgen)
+// Started by server.js when BRIDGE_URL / BRIDGE_PASSWORD are set (St. Gilgen runs stg-server.js).
 // Settings:    BRIDGE_URL       e.g. http://192.168.178.149:8098
 //              BRIDGE_PASSWORD  the bridge's panel_password
 //              ALLOWED_USERS    optional, comma-separated Tailscale logins
