@@ -1,0 +1,90 @@
+/* ==========================================================================
+   Wärme design system: one UI framework, two brands.
+   Shared by Seewärme (St. Gilgen) and Wien Wärme (Vienna).
+   Components reference these tokens only; the brand is chosen by
+   <html data-brand="see"> or <html data-brand="wien">, light/dark by
+   prefers-color-scheme or <html data-theme="light|dark">.
+   Brand guide: "Wien Wärme & Seewärme — App Brand Identity & UI Design Guidelines" v1.0, Nov 2026.
+   ========================================================================== */
+@font-face{font-family:"Manrope";font-style:normal;font-weight:200 800;font-display:swap;src:url(fonts/Manrope-latin.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Manrope";font-style:normal;font-weight:200 800;font-display:swap;src:url(fonts/Manrope-latin-ext.woff2) format("woff2");
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+
+/* ---- shared: identical in both apps ---- */
+:root{
+  --font:"Manrope",ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:16px;            /* cards */
+  --r-s:12px;          /* buttons, inputs, inner tiles */
+  --space:8px;         /* base spacing unit */
+  --heat-orange:#FF6518; --flame-gold:#FFB900;
+  --on-brand:#FFFFFF;
+  /* status: same meaning and colour in both apps (always paired with text or a symbol) */
+  --st-heating:#F28C28; --ok:#18866A; --info:#2386BD; --warn:#B76D00; --bad:#C62828; --off:#70747D;
+}
+
+/* ---- Seewärme: calm, alpine, refined ---- */
+:root[data-brand="see"]{
+  --bg:#F6FAFC; --card:#FFFFFF; --ink:#24232A; --ink-2:#565B64; --ink-3:#70747D; --line:#E1E9EF; --chip:#EAF1F6;
+  --brand:#075A91; --brand-deep:#00365B; --brand-2:#008DB8;
+  --brand-grad:linear-gradient(135deg,#00365B 0%,#075A91 55%,#0099C1 100%);
+  --accent:#075A91; --accent-soft:#E2EEF6;            /* active nav, primary buttons, selection, focus */
+  --ember:#E3570E; --ember-strong:#FF6518; --ember-soft:#FFE8DA;  /* heating active */
+  --lake:#0A7DA6; --lake-soft:#DDEFF6;                 /* cool / night / below target */
+  --c-measured:#075A91; --c-target:#FF6518; --c-activity:#F2A600;  /* charts */
+  --shadow:0 1px 2px rgba(0,54,91,.05),0 0 0 1px rgba(0,54,91,.055);
+}
+/* ---- Wien Wärme: warm, urban, energetic ---- */
+:root[data-brand="wien"]{
+  --bg:#FFF8F1; --card:#FFFFFF; --ink:#24232A; --ink-2:#5B5A5F; --ink-3:#70747D; --line:#F0E5DA; --chip:#F8EEE4;
+  --brand:#D60819; --brand-deep:#A90012; --brand-2:#FF6518;
+  --brand-grad:linear-gradient(135deg,#D60819 0%,#F02B12 48%,#FF8917 100%);
+  --accent:#C40717; --accent-soft:#FCE4E2;
+  --ember:#E3570E; --ember-strong:#FF6518; --ember-soft:#FFE8DA;
+  --lake:#2386BD; --lake-soft:#E1EEF7;
+  --c-measured:#2386BD; --c-target:#D60819; --c-activity:#FF6518;
+  --shadow:0 1px 2px rgba(80,20,10,.05),0 0 0 1px rgba(80,20,10,.055);
+}
+/* ---- dark: system setting unless the app forces light ---- */
+@media (prefers-color-scheme:dark){
+  :root[data-brand="see"]:not([data-theme="light"]){
+    --bg:#0B1D2B; --card:#142E40; --ink:#F5F7FA; --ink-2:#B9C3CD; --ink-3:#8C9DAB; --line:#22435A; --chip:#1B3A50;
+    --brand:#2B9BD3; --brand-2:#33B5DC; --brand-grad:linear-gradient(135deg,#00253F 0%,#064C7C 55%,#0583A8 100%);
+    --accent:#56BCE6; --accent-soft:#163D55;
+    --ember:#FF7A33; --ember-strong:#FF7A33; --ember-soft:#3E2519; --lake:#56BCE6; --lake-soft:#133B52;
+    --c-measured:#56BCE6; --c-target:#FF8A4C; --c-activity:#FFB900;
+    --ok:#3CC59B; --info:#5BB3E6; --warn:#E3A23B; --bad:#F0706A; --off:#8C9DAB;
+    --shadow:0 0 0 1px rgba(255,255,255,.05); color-scheme:dark}
+  :root[data-brand="wien"]:not([data-theme="light"]){
+    --bg:#17191F; --card:#24262D; --ink:#F5F7FA; --ink-2:#B9C3CD; --ink-3:#8D96A0; --line:#35373F; --chip:#2D3038;
+    --brand:#F0382B; --brand-2:#FF7A33; --brand-grad:linear-gradient(135deg,#A90012 0%,#D3150F 50%,#F26F12 100%);
+    --accent:#FF6A57; --accent-soft:#40221F;
+    --ember:#FF7A33; --ember-strong:#FF7A33; --ember-soft:#3E2519; --lake:#5BB3E6; --lake-soft:#173244;
+    --c-measured:#5BB3E6; --c-target:#FF6A57; --c-activity:#FF8A3D;
+    --ok:#3CC59B; --info:#5BB3E6; --warn:#E3A23B; --bad:#F0706A; --off:#8D96A0;
+    --shadow:0 0 0 1px rgba(255,255,255,.05); color-scheme:dark}
+}
+:root[data-brand="see"][data-theme="dark"]{
+  --bg:#0B1D2B; --card:#142E40; --ink:#F5F7FA; --ink-2:#B9C3CD; --ink-3:#8C9DAB; --line:#22435A; --chip:#1B3A50;
+  --brand:#2B9BD3; --brand-2:#33B5DC; --brand-grad:linear-gradient(135deg,#00253F 0%,#064C7C 55%,#0583A8 100%);
+  --accent:#56BCE6; --accent-soft:#163D55;
+  --ember:#FF7A33; --ember-strong:#FF7A33; --ember-soft:#3E2519; --lake:#56BCE6; --lake-soft:#133B52;
+  --c-measured:#56BCE6; --c-target:#FF8A4C; --c-activity:#FFB900;
+  --ok:#3CC59B; --info:#5BB3E6; --warn:#E3A23B; --bad:#F0706A; --off:#8C9DAB;
+  --shadow:0 0 0 1px rgba(255,255,255,.05); color-scheme:dark}
+:root[data-brand="wien"][data-theme="dark"]{
+  --bg:#17191F; --card:#24262D; --ink:#F5F7FA; --ink-2:#B9C3CD; --ink-3:#8D96A0; --line:#35373F; --chip:#2D3038;
+  --brand:#F0382B; --brand-2:#FF7A33; --brand-grad:linear-gradient(135deg,#A90012 0%,#D3150F 50%,#F26F12 100%);
+  --accent:#FF6A57; --accent-soft:#40221F;
+  --ember:#FF7A33; --ember-strong:#FF7A33; --ember-soft:#3E2519; --lake:#5BB3E6; --lake-soft:#173244;
+  --c-measured:#5BB3E6; --c-target:#FF6A57; --c-activity:#FF8A3D;
+  --ok:#3CC59B; --info:#5BB3E6; --warn:#E3A23B; --bad:#F0706A; --off:#8D96A0;
+  --shadow:0 0 0 1px rgba(255,255,255,.05); color-scheme:dark}
+
+/* ---- shared components: typography, controls, brand surfaces ---- */
+body{font-family:var(--font);font-weight:500;font-feature-settings:"tnum" 0}
+.num{font-variant-numeric:tabular-nums}
+h1{font-weight:700;letter-spacing:-.02em}
+h2{font-weight:600}
+:focus-visible{outline:2px solid var(--accent)}
+.brand-surface{background:var(--brand-grad);color:var(--on-brand)}
