@@ -1,7 +1,7 @@
 FROM node:22-alpine
 WORKDIR /app
 ARG VERSION=""
-COPY --chown=node:node server.js updater.js package.json ./
+COPY --chown=node:node *.js package.json ./
 COPY --chown=node:node public ./public
 RUN chown node:node /app && echo "$VERSION" > VERSION && chown node:node VERSION
 ENV NODE_ENV=production PORT=8080

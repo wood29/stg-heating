@@ -1,0 +1,69 @@
+    <!-- HOME -->
+    <section class="view" id="v-home" aria-label="Home">
+      <div class="g-home">
+          <div style="grid-area:hero" class="hero brand-hero">
+            <div class="row"><div class="eyebrow" id="h-eyebrow">Vienna</div></div>
+            <div class="temp-row"><div class="temp num" id="h-temp">–</div></div>
+            <div class="status"><i id="h-dot"></i><span id="h-status">–</span></div>
+            <p class="sub" id="h-sub"></p>
+            <button class="air-note" id="h-alert" data-go="settings" hidden></button>
+            <div class="facts" id="h-facts"></div>
+          </div>
+          <div style="grid-area:strip" class="strip-wrap"><div class="card strip many" id="h-rooms" aria-label="Room temperatures"></div></div>
+          <div style="grid-area:ctrl" class="ctrl">
+            <div class="seg seg2" role="group" aria-label="Weekly plans" id="seg"></div>
+            <p class="mode-note" id="mode-note"></p>
+            <div class="pills">
+              <button class="pill" id="p-warmby" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>Warm by plan time</button>
+            </div>
+          </div>
+          <div style="grid-area:today" class="card" id="today"></div>
+          <div style="grid-area:stay" class="card" id="h-warm"></div>
+      </div>
+    </section>
+
+    <!-- ROOMS -->
+    <section class="view" id="v-rooms" hidden aria-label="Rooms">
+      <div class="page-h"><div class="eyebrow">Rooms</div><h1>The house, floor by floor</h1></div>
+      <div class="stack" id="floors"></div>
+    </section>
+
+    <!-- PLAN -->
+    <section class="view" id="v-plan" hidden aria-label="Weekly plans">
+      <div class="page-h"><div class="eyebrow">Plan</div><h1>Weekly plans</h1><p class="sub">Each switch time sets the room's temperature. With “Warm by plan time” on, heating starts early enough to be warm at that time.</p></div>
+      <div class="chips" id="pl-rooms" role="group" aria-label="Room"></div>
+      <div class="g-two">
+        <div class="card" id="pl-edit"></div>
+        <div class="stack">
+          <div class="card" id="pl-today"></div>
+          <div class="card" id="pl-week"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSIGHTS -->
+    <section class="view" id="v-insights" hidden aria-label="Insights">
+      <div class="page-h"><div class="eyebrow">Insights</div><h1>Temperatures over time</h1></div>
+      <div class="hx-bar">
+        <div class="seg seg4" role="group" aria-label="Period" id="hx-seg"><button data-hx="1">Day</button><button data-hx="7">Week</button><button data-hx="30">Month</button><button data-hx="60">60 days</button></div>
+      </div>
+      <div class="stats hx-kpis" id="hx-kpis"></div>
+      <div class="card hx-card"><div class="card-h"><h2>Temperatures</h2><span class="small muted" id="hx-note"></span></div><div class="chips" id="hx-tchips"></div><div class="hx-chart" id="hx-temp"></div>
+        <div class="legend" id="hx-legend"></div></div>
+      <div class="g-two">
+        <div class="card"><div class="card-h"><h2>Warm-up speed</h2><span class="small muted">minutes per °C</span></div><div id="ebars"></div><p class="note" id="wu-note" style="margin-top:10px"></p></div>
+        <div class="card"><div class="card-h"><h2>Rooms</h2></div><dl class="kv" id="health"></dl></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="v-settings" hidden aria-label="Settings">
+      <div class="page-h"><div class="eyebrow">Settings</div><h1>House rules</h1><p class="sub">They live in the Intellihome bridge and keep working with no app open.</p></div>
+      <div class="g-two">
+        <div class="card" id="settings"></div>
+        <div class="stack">
+          <div class="card"><div class="setting" style="display:block;border-top:0;padding-top:2px"><div style="margin-bottom:12px"><b>Appearance</b><p>Auto follows this device's light or dark setting.</p></div><div class="seg seg3" role="group" aria-label="Appearance" id="theme-seg"></div></div></div>
+          <div class="card"><div class="card-h"><h2>Connection</h2></div><dl class="kv" id="conn-kv"></dl><p class="note" id="conn-note" style="margin-top:12px"></p></div>
+        </div>
+      </div>
+    </section>

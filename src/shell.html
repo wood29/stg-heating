@@ -542,6 +542,23 @@ input[type="range"]{accent-color:var(--accent)}
 .brand-hero .ava{box-shadow:0 0 0 2px rgba(255,255,255,.5)}
 @media (min-width:760px){.temp{font-size:84px}.brand-hero{padding:24px 26px 24px}}
 @media (min-width:1180px){.temp{font-size:96px}}
+/* ---------- components added for the weekly plans (both apps can use them) ---------- */
+.strip.many{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:4px}
+.strip.many button:nth-child(4n+1){box-shadow:none}
+@media (min-width:760px){.strip.many{grid-template-columns:repeat(7,minmax(0,1fr))}.strip.many button:nth-child(4n+1){box-shadow:-1px 0 0 var(--line)}.strip.many button:first-child{box-shadow:none}}
+.rule{display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:10px 12px;padding:12px 0;border-top:1px solid var(--line)}
+.rule:first-child{border-top:0}
+.rule input.time{min-width:0;width:128px;padding:10px 12px}
+.rule .rm{justify-self:end;color:var(--ink-3);font-weight:500}
+.rule .days{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
+.rule .days .chip{min-width:40px;text-align:center;padding:6px 8px}
+.week{display:flex;flex-direction:column}
+.wk-row{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+.wk-row:first-child{border-top:0}.wk-row>span{color:var(--ink-3);font-weight:600}.wk-row.now>span{color:var(--accent)}
+.wk-row div{display:flex;flex-wrap:wrap;gap:6px 14px}.wk-row em{font-style:normal}.wk-row em.none{color:var(--ink-3)}
+.today .tick{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--c-target);border-radius:2px}
+#floors .rooms-card{margin:0}
+@media (min-width:760px){#floors .rooms{grid-template-columns:repeat(4,minmax(0,1fr))}}
 </style>
 
 <div class="shell">

@@ -15,3 +15,22 @@ services:
       HA_TOKEN: "paste the long-lived token from the St. Gilgen Home Assistant here"
       # Optional: only these Tailscale logins may open the app (comma separated)
       ALLOWED_USERS: ""
+
+# ---------------------------------------------------------------------------
+# Wien Wärme (Vienna): the same app and image, started with bridge.js.
+# Create it as a second application in Container Station and paste only this part
+# (with the "services:" line). It talks to the Intellihome bridge on the Home
+# Assistant Green; the bridge keeps running the plans whether or not this app runs.
+#
+# services:
+#   wien-waerme:
+#     image: ghcr.io/wood29/stg-heating:latest
+#     container_name: wien-waerme
+#     restart: unless-stopped
+#     pull_policy: always
+#     command: ["node", "bridge.js"]
+#     ports:
+#       - "8794:8080"
+#     environment:
+#       BRIDGE_URL: "http://192.168.178.149:8098"
+#       BRIDGE_PASSWORD: "type the bridge's panel password here"

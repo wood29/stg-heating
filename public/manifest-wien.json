@@ -1,0 +1,42 @@
+{
+ "name": "Wien Wärme",
+ "short_name": "Wien Wärme",
+ "description": "Heating for the Vienna house",
+ "id": "/",
+ "start_url": "/",
+ "scope": "/",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#A90012",
+ "theme_color": "#D60819",
+ "icons": [
+  {
+   "src": "icons/wien/icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icons/wien/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icons/wien/icon-maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ],
+ "shortcuts": [
+  {
+   "name": "Rooms",
+   "url": "/#rooms"
+  },
+  {
+   "name": "Plan",
+   "url": "/#plan"
+  }
+ ]
+}
