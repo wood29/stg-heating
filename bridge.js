@@ -59,7 +59,7 @@ async function bridge(p, body) {
 
 // ---------------------------------------------------------------- live data
 // house: heating zones and floors only (the bridge also knows lights, shutters, sockets: not ours)
-const data = { connected: false, error: null, house: null, state: null, schedule: null, climate: null };
+const data = { connected: false, error: null, house: null, state: null, schedule: null, climate: null, outside: null };
 let zones = new Set();
 function trimHouse(h) {
   const fns = Object.fromEntries(Object.entries(h.functions || {}).filter(([, f]) => f.kind === "heating")
@@ -107,10 +107,24 @@ async function poll(what) {
   }
   broadcast();
 }
+// outside temperature for the main card: Open-Meteo (free, no account). Rounded position (about 10 km)
+// so no exact address is stored; WEATHER_LAT / WEATHER_LON can override it.
+const LAT = Number(process.env.WEATHER_LAT || 48.2), LON = Number(process.env.WEATHER_LON || 16.3);
+let wxErr = "";
+async function weather() {
+  try {
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m&timezone=Europe%2FVienna`, { signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const t = (await r.json())?.current?.temperature_2m;
+    if (typeof t === "number") { data.outside = { temp: t, at: Date.now() / 1000 }; broadcast(); }
+    wxErr = "";
+  } catch (e) { if (e.message !== wxErr) console.error(`Outside temperature: ${e.message}`); wxErr = e.message; }
+}
 const every = (what, ms) => { poll(what); setInterval(() => poll(what), ms); };
 async function start() {
   await poll("house");
   every("state", 10000); every("schedule", 20000); every("climate", 60000);
+  weather(); setInterval(weather, 10 * 60e3);
   setInterval(() => poll("house"), 3600e3);
 }
 

@@ -36,6 +36,7 @@ const DEMO = (() => {
                 zones: Object.fromEntries(Z.map(([s]) => [s, s === "first_floor_office_heating" ? { ...zone, enabled: true,
                   rules: [{ days: every, time: "06:00", temp: 21 }, { days: every, time: "19:00", temp: 19 }],
                   current: { temp: 21, time: "06:00", day: dk }, next: { temp: 19, time: "19:00", day: dk, in_days: next.getDate() !== now.getDate() ? 1 : 0, at: next / 1000 } } : { ...zone }])) },
+    outside: { temp: 8.4, at: now / 1000 },
     climate: { warmup: Object.fromEntries(Z.map(([s], i) => [s, { minutes_per_degree: i < 2 ? [95, 140][i] : null, measured: [], measuring: i === 3 ? { t0: now / 1000 - 3000, temp0: 19.6, target: 22 } : null }])) },
   };
 })();
@@ -140,6 +141,8 @@ function renderHome() {
   const zs = zones(), on = zs.filter(z => !z.off && z.known), withT = on.filter(z => z.temp != null);
   const avg = withT.reduce((a, z) => a + z.temp, 0) / (withT.length || 1);
   $("#h-temp").innerHTML = withT.length ? `${t1(avg)}<sup>°C</sup>` : "–";
+  const ot = D.outside?.temp, oel = $("#h-out"), fresh = D.outside && Date.now() / 1000 - D.outside.at < 3 * 3600;
+  oel.hidden = !(fresh && Number.isFinite(ot)); if (!oel.hidden) oel.querySelector("b").textContent = `${t1(ot)}°`;
   $("#h-eyebrow").textContent = `Vienna · ${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}`;
   const heating = on.filter(z => z.state === "hot" || z.boost), warming = on.filter(z => z.warming), away = D.schedule && !D.schedule.enabled;
   const list = a => { const n = a.map(z => z.name.toLowerCase()); return n.length > 1 ? n.slice(0, -1).join(", ") + " and " + n.at(-1) : n[0]; };
