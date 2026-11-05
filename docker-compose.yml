@@ -33,3 +33,6 @@ services:
 #     environment:
 #       BRIDGE_URL: "http://192.168.178.149:8098"
 #       BRIDGE_PASSWORD: 'type the panel password here'   # single quotes; write a $ as $$
+#       # optional: outside temperature from the Tempest station via the Vienna Home Assistant (read-only)
+#       HA_URL: "http://192.168.178.149:8123"
+#       HA_TOKEN: "paste a long-lived token from the Vienna Home Assistant here"

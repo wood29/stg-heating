@@ -10,6 +10,7 @@
 // Settings:    BRIDGE_URL       e.g. http://192.168.178.149:8098
 //              BRIDGE_PASSWORD  the bridge's panel_password
 //              ALLOWED_USERS    optional, comma-separated Tailscale logins
+//              HA_URL, HA_TOKEN optional: Vienna Home Assistant (read-only) for the Tempest outside temperature
 
 import http from "node:http";
 import { readFile } from "node:fs/promises";
@@ -111,12 +112,29 @@ async function poll(what) {
 // so no exact address is stored; WEATHER_LAT / WEATHER_LON can override it.
 const LAT = Number(process.env.WEATHER_LAT || 48.2), LON = Number(process.env.WEATHER_LON || 16.3);
 let wxErr = "";
+// Preferred: Mike's own Tempest weather station, read (read-only) from the Vienna Home Assistant.
+// Needs HA_URL and HA_TOKEN; the weather service below is the fallback.
+const HA_URL = (process.env.HA_URL || "").replace(/\/+$/, ""), HA_TOKEN = process.env.HA_TOKEN || "";
+const OUTSIDE = process.env.OUTSIDE_ENTITY || "sensor.ws_temperature";
+let haErr = "";
+async function tempest() {
+  try {
+    const r = await fetch(`${HA_URL}/api/states/${OUTSIDE}`, { headers: { Authorization: `Bearer ${HA_TOKEN}` }, signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error(r.status === 401 ? "Home Assistant rejected the token" : `Home Assistant answered HTTP ${r.status}`);
+    const e = await r.json(), t = Number(e.state), at = Date.parse(e.last_reported || e.last_updated) / 1000;
+    if (!Number.isFinite(t) || Date.now() / 1000 - at > 3600) throw new Error(`${OUTSIDE} has no recent reading (${e.state})`);
+    data.outside = { temp: t, at, source: "Tempest" }; broadcast();
+    if (haErr) console.log("Outside temperature: Tempest is back"); haErr = "";
+    return true;
+  } catch (e) { if (e.message !== haErr) console.error(`Tempest via Home Assistant: ${e.message}`); haErr = e.message; return false; }
+}
 async function weather() {
+  if (HA_URL && HA_TOKEN && await tempest()) return;
   try {
     const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m&timezone=Europe%2FVienna`, { signal: AbortSignal.timeout(15000) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const t = (await r.json())?.current?.temperature_2m;
-    if (typeof t === "number") { data.outside = { temp: t, at: Date.now() / 1000 }; broadcast(); }
+    if (typeof t === "number") { data.outside = { temp: t, at: Date.now() / 1000, source: "Open-Meteo" }; broadcast(); }
     wxErr = "";
   } catch (e) { if (e.message !== wxErr) console.error(`Outside temperature: ${e.message}`); wxErr = e.message; }
 }
@@ -124,7 +142,7 @@ const every = (what, ms) => { poll(what); setInterval(() => poll(what), ms); };
 async function start() {
   await poll("house");
   every("state", 10000); every("schedule", 20000); every("climate", 60000);
-  weather(); setInterval(weather, 10 * 60e3);
+  weather(); setInterval(weather, (HA_URL && HA_TOKEN ? 1 : 10) * 60e3);
   setInterval(() => poll("house"), 3600e3);
 }
 

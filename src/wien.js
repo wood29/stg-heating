@@ -308,7 +308,7 @@ function renderSettings() {
   $("#theme-seg").innerHTML = [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => `<button data-theme="${v}" aria-pressed="${t === v}">${l}</button>`).join("");
   const b = B();
   $("#conn-kv").innerHTML = `<dt>App</dt><dd>${live ? (up ? "Connected" : "Reconnecting") : "Example data"}</dd><dt>Heating controller</dt><dd>${b.online ? "Answering" : "Not answering"}</dd>
-    <dt>Changes</dt><dd>${canWrite() ? "On hold" : "Allowed"}</dd><dt>Bridge</dt><dd class="num">${esc(b.version || "–")}</dd>`;
+    <dt>Changes</dt><dd>${canWrite() ? "On hold" : "Allowed"}</dd><dt>Bridge</dt><dd class="num">${esc(b.version || "–")}</dd><dt>Outside temperature</dt><dd>${esc(D.outside?.source === "Tempest" ? "Tempest station" : D.outside?.source === "Open-Meteo" ? "Weather service (Open-Meteo)" : "–")}</dd>`;
   $("#conn-note").textContent = canWrite() || "The app sends changes to the Intellihome bridge on the Home Assistant Green, which holds the only connection to the heating controller.";
 }
 const getTheme = () => lsGet("theme") || "auto";
