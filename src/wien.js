@@ -42,7 +42,7 @@ const DEMO = (() => {
 })();
 
 /* ---------- data ---------- */
-let D = DEMO, live = false, up = false, bridgeErr = null;
+let D = DEMO, live = false, up = false, bridgeErr = null, SETUP = null;
 const pending = new Map();      // slug -> { value, t }   target changes waiting 1.2 s for more taps
 let plan = { room: lsGet("plan.room"), rules: null, dirty: false };
 
@@ -150,7 +150,7 @@ function renderHome() {
   $("#h-status").textContent = title; $("#h-dot").className = tone === "ok" ? "" : tone;
   $("#h-sub").textContent = away ? "Weekly plans are paused; every room holds its temperature." :
     warming.length ? `Warming the ${list(warming)} for the next plan time.` : heating.length ? `Heating the ${list(heating)}.` : on.length ? "Every heated room is at its temperature." : "Heating is off in every room.";
-  const why = bridgeErr ? `The app can't reach the heating bridge: ${bridgeErr}. Showing example data.` : live ? canWrite() : null, al = $("#h-alert"); al.hidden = !why;
+  const why = bridgeErr ? (SETUP && !SETUP.bridge ? "Enter the bridge password in Settings › Connection setup. Showing example data." : `The app can't reach the heating bridge: ${bridgeErr}. Showing example data.`) : live ? canWrite() : null, al = $("#h-alert"); al.hidden = !why;
   if (why) al.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3 2 20h20zM12 10v4M12 17h.01"/></svg><span><b>${bridgeErr ? "Not connected" : "Changes are on hold"}</b><br><em>${esc(why)}</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>`;
   $("#h-facts").innerHTML = `<span><b class="num">${on.length}</b> of ${zs.length} rooms heated</span>` +
     (enToday?.n ? `<span><b class="num">${eur(enToday.hc)}</b> heating today</span>` : "");
@@ -359,6 +359,8 @@ function renderSettings() {
   const b = B();
   $("#conn-kv").innerHTML = `<dt>App</dt><dd>${live ? (up ? "Connected" : "Reconnecting") : "Example data"}</dd><dt>Heating controller</dt><dd>${b.online ? "Answering" : "Not answering"}</dd>
     <dt>Changes</dt><dd>${canWrite() ? "On hold" : "Allowed"}</dd><dt>Bridge</dt><dd class="num">${esc(b.version || "–")}</dd><dt>Electricity price</dt><dd class="num">${enToday?.price ? `€ ${enToday.price.eur.toFixed(3)}/kWh` : "–"}</dd><dt>Outside temperature</dt><dd>${esc(D.outside?.source === "Tempest" ? "Tempest station" : D.outside?.source === "Open-Meteo" ? "Weather service (Open-Meteo)" : "–")}</dd>`;
+  if (SETUP) { $("#st-bridge").textContent = SETUP.bridge ? (bridgeErr ? "· not accepted" : "· set") : "· not set"; $("#st-ha").textContent = SETUP.ha ? (SETUP.ha_error ? "· " + SETUP.ha_error : "· set") : "· not set"; }
+  $("#setup-card").hidden = !SETUP;
   $("#conn-note").textContent = canWrite() || "The app sends changes to the Intellihome bridge on the Home Assistant Green, which holds the only connection to the heating controller.";
 }
 const getTheme = () => lsGet("theme") || "auto";
@@ -428,6 +430,19 @@ document.addEventListener("input", e => {
   if (el.dataset.wset) { const k = el.dataset.wset; $("#o-" + k).textContent = `${fmt(parseFloat(el.value))} ${SET.find(s => s[0] === k)[6]}`; }
 });
 $("#sheet").addEventListener("close", () => { sheetSlug = null; render(); });
+$("#setup-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const b = {}, bp = $("#set-bridge").value.trim(), ht = $("#set-ha").value.trim();
+  if (bp) b.bridge_password = bp; if (ht) b.ha_token = ht;
+  if (!bp && !ht) return toast("Type the password or the key first.");
+  try {
+    const r = await fetch("api/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || `Request failed (${r.status})`);
+    $("#set-bridge").value = ""; $("#set-ha").value = "";
+    toast(d.connected ? "Saved · connected" : `Saved · ${d.error || "connecting…"}`);
+  } catch (x) { toast(x.message); }
+});
 
 /* ---------- start ---------- */
 async function goLive() {
@@ -438,7 +453,7 @@ async function goLive() {
   es.addEventListener("snapshot", e => {
     const d = JSON.parse(e.data); up = d.connected;
     if (d.house) { const first = !live; D = d; live = true; if (first) refreshToday(); }
-    bridgeErr = d.house ? null : d.error;
+    bridgeErr = d.house ? null : d.error; SETUP = d.setup || null;
     soon();
   });
   es.onerror = () => { up = false; soon(); };

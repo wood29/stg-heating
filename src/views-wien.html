@@ -66,6 +66,13 @@
         <div class="card" id="settings"></div>
         <div class="stack">
           <div class="card"><div class="setting" style="display:block;border-top:0;padding-top:2px"><div style="margin-bottom:12px"><b>Appearance</b><p>Auto follows this device's light or dark setting.</p></div><div class="seg seg3" role="group" aria-label="Appearance" id="theme-seg"></div></div></div>
+          <div class="card" id="setup-card"><div class="card-h"><h2>Connection setup</h2></div>
+            <p class="note" id="setup-note">Typed once here and kept only on the NAS; never shown again.</p>
+            <form id="setup-form" autocomplete="off">
+              <label class="field"><span>Bridge password <em id="st-bridge"></em></span><input type="password" id="set-bridge" autocomplete="new-password" placeholder="Panel password of the Intellihome bridge"></label>
+              <label class="field"><span>Home Assistant key <em id="st-ha"></em></span><input type="password" id="set-ha" autocomplete="new-password" placeholder="Long-lived access token (eyJ…)"></label>
+              <div class="btns" style="margin-top:12px"><button class="btn" type="submit">Save</button></div>
+            </form></div>
           <div class="card"><div class="card-h"><h2>Connection</h2></div><dl class="kv" id="conn-kv"></dl><p class="note" id="conn-note" style="margin-top:12px"></p></div>
         </div>
       </div>

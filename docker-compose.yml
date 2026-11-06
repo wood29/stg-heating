@@ -17,10 +17,10 @@ services:
       ALLOWED_USERS: ""
 
 # ---------------------------------------------------------------------------
-# Wien Wärme (Vienna): the same app and image; BRIDGE_URL/BRIDGE_PASSWORD make it start as Wien Wärme.
+# Wien Wärme (Vienna): the same app and image; BRIDGE_URL makes it start as Wien Wärme.
 # Create it as a second application in Container Station and paste only this part
-# (with the "services:" line). It talks to the Intellihome bridge on the Home
-# Assistant Green; the bridge keeps running the plans whether or not this app runs.
+# (with the "services:" line). The bridge password and the Home Assistant key are typed
+# once in the app (Settings > Connection setup), so this never needs editing again.
 #
 # services:
 #   wien-waerme:
@@ -32,7 +32,4 @@ services:
 #       - "8796:8080"   (8794 is the Health app)
 #     environment:
 #       BRIDGE_URL: "http://192.168.178.149:8098"
-#       BRIDGE_PASSWORD: 'type the panel password here'   # single quotes; write a $ as $$
-#       # optional: outside temperature from the Tempest station via the Vienna Home Assistant (read-only)
 #       HA_URL: "http://192.168.178.149:8123"
-#       HA_TOKEN: "paste a long-lived token from the Vienna Home Assistant here"

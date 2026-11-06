@@ -19,7 +19,10 @@ import path from "node:path";
 import { startUpdater } from "./updater.js";
 
 const BRIDGE = (process.env.BRIDGE_URL || "http://192.168.178.149:8098").replace(/\/+$/, "");
-const PASSWORD = process.env.BRIDGE_PASSWORD || "";
+let PASSWORD = process.env.BRIDGE_PASSWORD || "";
+// Secrets can also be typed once in the app (Settings > Connection setup); they are kept on the NAS in
+// data/secrets.json (readable only by this app) and never sent back to any browser.
+const SECRETS = path.join(path.dirname(fileURLToPath(import.meta.url)), "data", "secrets.json");
 const PORT = Number(process.env.PORT || 8080);
 const ALLOWED_USERS = (process.env.ALLOWED_USERS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), "public");
@@ -85,8 +88,9 @@ function trimState(s) {
 }
 
 const clients = new Set();
+const snapshot = () => JSON.stringify({ ...data, setup: { bridge: !!PASSWORD, ha: !!(HA_URL && HA_TOKEN), ha_error: haErr || enErr || null } });
 function broadcast() {
-  const msg = `event: snapshot\ndata: ${JSON.stringify(data)}\n\n`;
+  const msg = `event: snapshot\ndata: ${snapshot()}\n\n`;
   for (const res of clients) res.write(msg);
 }
 setInterval(() => { for (const res of clients) res.write(": ping\n\n"); }, 25000);
@@ -114,7 +118,7 @@ const LAT = Number(process.env.WEATHER_LAT || 48.2), LON = Number(process.env.WE
 let wxErr = "";
 // Preferred: Mike's own Tempest weather station, read (read-only) from the Vienna Home Assistant.
 // Needs HA_URL and HA_TOKEN; the weather service below is the fallback.
-const HA_URL = (process.env.HA_URL || "").replace(/\/+$/, ""), HA_TOKEN = process.env.HA_TOKEN || "";
+let HA_URL = (process.env.HA_URL || "http://192.168.178.149:8123").replace(/\/+$/, ""), HA_TOKEN = process.env.HA_TOKEN || "";
 const OUTSIDE = process.env.OUTSIDE_ENTITY || "sensor.ws_temperature";
 let haErr = "";
 async function tempest() {
@@ -128,8 +132,11 @@ async function tempest() {
     return true;
   } catch (e) { if (e.message !== haErr) console.error(`Tempest via Home Assistant: ${e.message}`); haErr = e.message; return false; }
 }
+let wxAt = 0;
 async function weather() {
   if (HA_URL && HA_TOKEN && await tempest()) return;
+  if (Date.now() - wxAt < 10 * 60e3 && data.outside?.source === "Open-Meteo") return;
+  wxAt = Date.now();
   try {
     const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m&timezone=Europe%2FVienna`, { signal: AbortSignal.timeout(15000) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -155,6 +162,7 @@ const ha = async p => {
   return r.json();
 };
 async function energySync() {
+  if (!energyOn()) return;
   try {
     const now = Date.now(), from = Math.max(now - 60 * 86400e3, (store.synced || 0) - 6 * 3600e3);
     const ids = [...E_HEAT, ...E_WATER, PRICE];
@@ -197,14 +205,30 @@ function energyHours(days) {
 const energyOn = () => !!(HA_URL && HA_TOKEN);
 
 const every = (what, ms) => { poll(what); setInterval(() => poll(what), ms); };
+async function loadSecrets() {
+  try {
+    const j = JSON.parse(await readFile(SECRETS, "utf8"));
+    if (j.bridge_password) PASSWORD = j.bridge_password;
+    if (j.ha_token) HA_TOKEN = j.ha_token;
+    if (j.ha_url) HA_URL = j.ha_url;
+  } catch { }
+}
+async function saveSecrets(b) {
+  let j = {}; try { j = JSON.parse(await readFile(SECRETS, "utf8")); } catch { }
+  if (b.bridge_password) j.bridge_password = PASSWORD = b.bridge_password;
+  if (b.ha_token) j.ha_token = HA_TOKEN = b.ha_token;
+  await mkdir(path.dirname(SECRETS), { recursive: true });
+  await writeFile(SECRETS, JSON.stringify(j), { mode: 0o600 });
+  if (b.bridge_password) { cookie = ""; rejectedUntil = 0; await poll("house"); poll("state"); poll("schedule"); poll("climate"); }
+  if (b.ha_token) { haErr = ""; weather(); energySync(); }
+}
 async function start() {
+  await loadSecrets();
   await poll("house");
   every("state", 10000); every("schedule", 20000); every("climate", 60000);
-  weather(); setInterval(weather, (HA_URL && HA_TOKEN ? 1 : 10) * 60e3);
-  if (energyOn()) {
-    try { store = { ...store, ...JSON.parse(await readFile(STORE, "utf8")) }; } catch { }
-    energySync(); setInterval(energySync, 15 * 60e3);
-  }
+  weather(); setInterval(weather, 60e3);
+  try { store = { ...store, ...JSON.parse(await readFile(STORE, "utf8")) }; } catch { }
+  energySync(); setInterval(energySync, 15 * 60e3);
   setInterval(() => poll("house"), 3600e3);
 }
 
@@ -249,7 +273,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/health") return json(res, 200, { ok: true, connected: data.connected, user: who(req) || null });
     if (url.pathname === "/api/events") {
       res.writeHead(200, { ...SEC, "Content-Type": "text/event-stream", "Cache-Control": "no-store", Connection: "keep-alive", "X-Accel-Buffering": "no" });
-      res.write(`event: snapshot\ndata: ${JSON.stringify(data)}\n\n`);
+      res.write(`event: snapshot\ndata: ${snapshot()}\n\n`);
       clients.add(res); req.on("close", () => clients.delete(res));
       return;
     }
@@ -263,6 +287,16 @@ const server = http.createServer(async (req, res) => {
       const d = Number(url.searchParams.get("days"));
       if (!isNum(d, 0.25, 60)) return json(res, 400, { error: "Bad period" });
       return json(res, 200, await bridge(`history/${d}`));
+    }
+    if (url.pathname === "/api/setup" && req.method === "POST") {
+      let body = ""; for await (const chunk of req) { body += chunk; if (body.length > 16384) return json(res, 413, { error: "Request too large" }); }
+      let b; try { b = JSON.parse(body); } catch { return json(res, 400, { error: "Invalid request" }); }
+      const ok = v => v === undefined || (typeof v === "string" && v.length >= 1 && v.length <= 4096 && !/[\r\n]/.test(v));
+      if (!b || !ok(b.bridge_password) || !ok(b.ha_token) || (!b.bridge_password && !b.ha_token) || Object.keys(b).some(k => !["bridge_password", "ha_token"].includes(k)))
+        return json(res, 400, { error: "Nothing to save" });
+      await saveSecrets(b);
+      console.log(`${who(req) || "local"}: connection setup changed (${Object.keys(b).join(", ")})`);
+      return json(res, 200, { ok: true, connected: data.connected, error: data.error });
     }
     const ctl = url.pathname.match(/^\/api\/(heating|boost|schedule)$/);
     if (ctl && req.method === "POST") {
