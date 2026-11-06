@@ -13,7 +13,7 @@
 //              HA_URL, HA_TOKEN optional: Vienna Home Assistant (read-only) for the Tempest outside temperature
 
 import http from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { startUpdater } from "./updater.js";
@@ -138,11 +138,73 @@ async function weather() {
     wxErr = "";
   } catch (e) { if (e.message !== wxErr) console.error(`Outside temperature: ${e.message}`); wxErr = e.message; }
 }
+// ---------------------------------------------------------------- heating energy and cost (Vienna Home Assistant, read-only)
+// The NIBE heat pump (myUplink) reports the electricity it used in the past hour, for heating and for hot water,
+// a few minutes after every full hour. The finance app keeps sensor.vienna_electricity_price up to date: the all-in
+// price in EUR/kWh (energy, grid, levies, VAT, energy-community share already blended in). Cost = kWh x price.
+// Kept here per hour in data/energy.json (Home Assistant only keeps about 10 days of history).
+const E_HEAT = ["sensor.laundry_room_vvm_320_e_el_energy_used_for_heating_past_hour", "sensor.laundry_room_vvm_320_e_el_energy_used_by_additional_heater_for_heating_past_hour"];
+const E_WATER = ["sensor.laundry_room_vvm_320_e_el_energy_used_for_hot_water_past_hour", "sensor.laundry_room_vvm_320_e_el_energy_used_by_additional_heater_for_hot_water_past_hour"];
+const PRICE = process.env.PRICE_ENTITY || "sensor.vienna_electricity_price";
+const STORE = path.join(path.dirname(PUBLIC), "data", "energy.json");
+let store = { hours: {}, prices: [], price: null, synced: 0 };   // hours: { hourStart: { entity: kWh } }, prices: [[t, eur]]
+let enErr = "";
+const ha = async p => {
+  const r = await fetch(HA_URL + p, { headers: { Authorization: `Bearer ${HA_TOKEN}` }, signal: AbortSignal.timeout(30000) });
+  if (!r.ok) throw new Error(r.status === 401 ? "Home Assistant rejected the token" : `Home Assistant answered HTTP ${r.status}`);
+  return r.json();
+};
+async function energySync() {
+  try {
+    const now = Date.now(), from = Math.max(now - 60 * 86400e3, (store.synced || 0) - 6 * 3600e3);
+    const ids = [...E_HEAT, ...E_WATER, PRICE];
+    const hist = await ha(`/api/history/period/${new Date(from).toISOString()}?end_time=${encodeURIComponent(new Date(now).toISOString())}&filter_entity_id=${ids.join(",")}&minimal_response&no_attributes`);
+    for (const series of hist || []) {
+      const id = series[0]?.entity_id; if (!id) continue;
+      for (const st of series) {
+        const v = Number(st.state), t = Date.parse(st.last_changed || st.last_updated) / 1000;
+        if (!Number.isFinite(v) || !Number.isFinite(t)) continue;       // "unavailable": skip, never count as 0
+        if (id === PRICE) { if (!store.prices.some(p => p[0] === t)) store.prices.push([t, v]); continue; }
+        const h = Math.floor(t / 3600) * 3600 - 3600;                   // the value is for the hour that just ended
+        (store.hours[h] ||= {})[id] = v;
+      }
+    }
+    store.prices.sort((a, b) => a[0] - b[0]);
+    const p = await ha(`/api/states/${PRICE}`).catch(() => null);
+    if (p && Number.isFinite(Number(p.state))) {
+      const a = p.attributes || {};
+      store.price = { eur: Number(p.state), supplier: a.supplier ?? null, tariff: a.tariff ?? null, valid_from: a.valid_from ?? null, last_synced: a.last_synced ?? null, community_share: a.community_share ?? null };
+      const t = Date.parse(p.last_updated) / 1000; if (!store.prices.some(q => q[0] === t)) { store.prices.push([t, store.price.eur]); store.prices.sort((a, b) => a[0] - b[0]); }
+    }                                                                     // unavailable: keep the last known price
+    const cut = now / 1000 - 400 * 86400;
+    for (const h of Object.keys(store.hours)) if (h < cut) delete store.hours[h];
+    store.prices = store.prices.filter((q, i, a) => q[0] >= cut || i === a.length - 1);
+    store.synced = now;
+    await mkdir(path.dirname(STORE), { recursive: true }); await writeFile(STORE, JSON.stringify(store));
+    if (enErr) console.log("Heating energy: back"); enErr = "";
+  } catch (e) { if (e.message !== enErr) console.error(`Heating energy: ${e.message}`); enErr = e.message; }
+}
+function priceAt(t) {   // the price in force during that hour; before the first known price, the earliest one
+  const ps = store.prices; if (!ps.length) return store.price?.eur ?? null;
+  let v = ps[0][1]; for (const [pt, pv] of ps) { if (pt <= t + 3600) v = pv; else break; } return v;
+}
+function energyHours(days) {
+  const from = Date.now() / 1000 - days * 86400;
+  const sum = (o, ids) => { const v = ids.map(i => o[i]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) : null; };
+  return Object.entries(store.hours).map(([h, o]) => [Number(h), sum(o, E_HEAT), sum(o, E_WATER)]).filter(r => r[0] >= from && (r[1] != null || r[2] != null))
+    .sort((a, b) => a[0] - b[0]).map(([h, he, wa]) => [h, he, wa, priceAt(h)]);
+}
+const energyOn = () => !!(HA_URL && HA_TOKEN);
+
 const every = (what, ms) => { poll(what); setInterval(() => poll(what), ms); };
 async function start() {
   await poll("house");
   every("state", 10000); every("schedule", 20000); every("climate", 60000);
   weather(); setInterval(weather, (HA_URL && HA_TOKEN ? 1 : 10) * 60e3);
+  if (energyOn()) {
+    try { store = { ...store, ...JSON.parse(await readFile(STORE, "utf8")) }; } catch { }
+    energySync(); setInterval(energySync, 15 * 60e3);
+  }
   setInterval(() => poll("house"), 3600e3);
 }
 
@@ -190,6 +252,12 @@ const server = http.createServer(async (req, res) => {
       res.write(`event: snapshot\ndata: ${JSON.stringify(data)}\n\n`);
       clients.add(res); req.on("close", () => clients.delete(res));
       return;
+    }
+    if (url.pathname === "/api/energy") {
+      const d = Number(url.searchParams.get("days"));
+      if (!isNum(d, 0.25, 400)) return json(res, 400, { error: "Bad period" });
+      if (!energyOn()) return json(res, 200, { enabled: false });
+      return json(res, 200, { enabled: true, hours: energyHours(d), price: store.price, synced: store.synced, error: enErr || null });
     }
     if (url.pathname === "/api/history") {
       const d = Number(url.searchParams.get("days"));

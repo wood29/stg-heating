@@ -563,6 +563,12 @@ input[type="range"]{accent-color:var(--accent)}
 .today .tick{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--c-target);border-radius:2px}
 #floors .rooms-card{margin:0}
 @media (min-width:760px){#floors .rooms{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.en-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 16px;margin:2px 0 10px}
+.en-kpis div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.en-kpis span{font-size:12.5px;color:var(--ink-3);font-weight:600}
+.en-kpis b{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.en-kpis b small{font-size:13px;font-weight:600;color:var(--ink-3);margin-left:3px}
+.en-kpis em{font-style:normal;font-size:12.5px;color:var(--ink-3)}
 </style>
 
 <div class="shell">
@@ -628,6 +634,9 @@ input[type="range"]{accent-color:var(--accent)}
         <div class="seg seg4" role="group" aria-label="Period" id="hx-seg"><button data-hx="1">Day</button><button data-hx="7">Week</button><button data-hx="30">Month</button><button data-hx="60">60 days</button></div>
       </div>
       <div class="stats hx-kpis" id="hx-kpis"></div>
+      <div class="card hx-card" id="en-card" hidden><div class="card-h"><h2>Heating energy</h2><span class="small muted" id="en-note"></span></div>
+        <div class="en-kpis" id="en-kpis"></div><div class="hx-chart" id="hx-energy"></div>
+        <div class="legend"><span><i style="background:var(--c-activity)"></i>Heating, kWh</span></div><p class="note" id="en-foot" style="margin-top:8px"></p></div>
       <div class="card hx-card"><div class="card-h"><h2>Temperatures</h2><span class="small muted" id="hx-note"></span></div><div class="chips" id="hx-tchips"></div><div class="hx-chart" id="hx-temp"></div>
         <div class="legend" id="hx-legend"></div></div>
       <div class="g-two">
@@ -905,7 +914,8 @@ function renderHome() {
     warming.length ? `Warming the ${list(warming)} for the next plan time.` : heating.length ? `Heating the ${list(heating)}.` : on.length ? "Every heated room is at its temperature." : "Heating is off in every room.";
   const why = bridgeErr ? `The app can't reach the heating bridge: ${bridgeErr}. Showing example data.` : live ? canWrite() : null, al = $("#h-alert"); al.hidden = !why;
   if (why) al.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3 2 20h20zM12 10v4M12 17h.01"/></svg><span><b>${bridgeErr ? "Not connected" : "Changes are on hold"}</b><br><em>${esc(why)}</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>`;
-  $("#h-facts").innerHTML = `<span><b class="num">${on.length}</b> of ${zs.length} rooms heated</span>`;
+  $("#h-facts").innerHTML = `<span><b class="num">${on.length}</b> of ${zs.length} rooms heated</span>` +
+    (enToday?.n ? `<span><b class="num">${eur(enToday.hc)}</b> heating today</span>` : "");
   $("#h-rooms").innerHTML = zs.map(z => `<button data-zone="${z.slug}" aria-label="${z.name} ${z.temp != null ? t1(z.temp) + " degrees" : ""}, ${z.text}"><span>${z.short}</span><b class="num">${z.temp != null ? t1(z.temp) + "°" : "–"}</b><i class="${z.off ? "off" : z.state}"></i></button>`).join("");
   $("#seg").innerHTML = [["plans", "Plans"], ["away", "Away"]].map(([v, l]) => `<button data-away="${v === "away"}" aria-pressed="${(v === "away") === !!away}">${l}</button>`).join("");
   $("#mode-note").textContent = away ? "Away pauses every weekly plan. Rooms keep their temperature." : "Weekly plans run in the bridge, even with no app open.";
@@ -990,6 +1000,33 @@ function ruleRow(r, i) {
 }
 function editRules(fn) { const rs = rulesNow(); fn(rs); rs.sort(byTime); plan.rules = rs; plan.dirty = true; document.activeElement?.blur?.(); renderPlan(); }
 
+/* ---------- heating energy and cost (heat pump x Vienna price, from the server) ---------- */
+let EN = { enabled: false, hours: [], price: null };
+const eur = v => v == null ? "–" : "€ " + v.toFixed(2);
+const kwh = v => v == null ? "–" : v.toLocaleString("en-GB", { maximumFractionDigits: v < 10 ? 1 : 0 });
+function enDemo(days) {
+  const h0 = Math.floor(Date.now() / 3600e3) * 3600 - days * 86400, out = [];
+  for (let t = h0; t < Date.now() / 1000 - 3600; t += 3600) { const hr = new Date(t * 1000).getHours(); out.push([t, +(0.25 + 0.7 * Math.max(0, Math.cos((hr - 4) / 24 * 6.28)) * (0.8 + 0.4 * Math.sin(t / 77777))).toFixed(2), hr === 2 || hr === 14 ? 0.9 : 0.05, 0.271]); }
+  return { enabled: true, hours: out, price: { eur: 0.271, supplier: "Wien Energie + energy community", tariff: "OPTIMA Entspannt plus", last_synced: "example" } };
+}
+async function loadEnergy(days) {
+  if (!live) return enDemo(days);
+  return fetch(`api/energy?days=${days}`).then(r => r.ok ? r.json() : null).catch(() => null);
+}
+function enSum(hours, from, to = Infinity) {
+  let hk = 0, hc = 0, wk = 0, wc = 0, n = 0;
+  for (const [t, he, wa, p] of hours) if (t >= from && t < to) { n++; if (he != null) { hk += he; if (p != null) hc += he * p; } if (wa != null) { wk += wa; if (p != null) wc += wa * p; } }
+  return { n, hk, hc, wk, wc };
+}
+let enToday = null;
+async function refreshToday() {
+  const d = await loadEnergy(2); if (!d?.enabled) { enToday = null; return renderHome(); }
+  const mid = new Date(); mid.setHours(0, 0, 0, 0);
+  enToday = { ...enSum(d.hours, mid / 1000), price: d.price };
+  if (D.house) renderHome();
+}
+setInterval(refreshToday, 10 * 60e3);
+
 /* ---------- insights ---------- */
 const HX = { days: Number(lsGet("hx.days")) || 7, data: null, req: 0, sel: new Set((lsGet("hx.sel") || "").split(",").filter(Boolean)) };
 function hxDemo(days) {
@@ -1001,8 +1038,10 @@ function hxDemo(days) {
 async function hxLoad() {
   const id = ++HX.req; document.body.classList.add("hx-loading");
   let d = null;
+  const en = loadEnergy(HX.days);
   if (live) d = await fetch(`api/history?days=${HX.days}`).then(r => r.ok ? r.json() : null).catch(() => null);
   else d = hxDemo(HX.days);
+  EN = (await en) || { enabled: false, hours: [] };
   if (id !== HX.req) return;
   document.body.classList.remove("hx-loading");
   HX.data = d; hxRender();
@@ -1015,13 +1054,14 @@ function hxRender() {
   const d = HX.data;
   if (!d || !d.t?.length) { $("#hx-temp").innerHTML = `<p class="hx-empty">${live ? "No history from the bridge yet." : "No data."}</p>`; $("#hx-kpis").innerHTML = ""; return; }
   // buckets: hours for a day, days for longer periods
-  const hourly = HX.days <= 1, size = hourly ? 3600 : 86400, start = new Date(d.t[0] * 1000);
+  const hourly = HX.days <= 1, size = hourly ? 3600 : 86400, start = new Date(Math.min(d.t[0], Date.now() / 1000 - HX.days * 86400 + size) * 1000);
   if (hourly) start.setMinutes(0, 0, 0); else start.setHours(0, 0, 0, 0);
-  const buckets = []; for (let b = new Date(start); b.getTime() / 1000 <= d.t.at(-1); hourly ? b.setHours(b.getHours() + 1) : b.setDate(b.getDate() + 1)) buckets.push(new Date(b));
+  const buckets = []; for (let b = new Date(start); b.getTime() <= Date.now(); hourly ? b.setHours(b.getHours() + 1) : b.setDate(b.getDate() + 1)) buckets.push(new Date(b));
   const idx = ts => { let i = buckets.length - 1; while (i > 0 && buckets[i].getTime() / 1000 > ts) i--; return i; };
   const agg = key => { const out = {}; for (const [s, v] of Object.entries(d.zones)) { const acc = buckets.map(() => []); v[key]?.forEach((x, j) => { if (x != null) acc[idx(d.t[j])].push(x); });
     out[s] = acc.map(a => a.length ? [a.reduce((p, q) => p + q, 0) / a.length, Math.min(...a), Math.max(...a)] : null); } return out; };
   const T = agg("temp"), G = agg("target");
+  enRender(buckets, idx, hourly);
   const R = { buckets, bucket: hourly ? "hour" : "day", kind: HX.days === 7 ? "week" : HX.days === 1 ? "day" : "month", label: `Temperatures, last ${HX.days === 1 ? "24 hours" : HX.days + " days"}` };
   const shown = zs.filter(z => HX.sel.has(z.slug) && T[z.slug]);
   const one = shown.length === 1;
@@ -1038,6 +1078,25 @@ function hxRender() {
     ["Warmest", warm ? `${t1(warm[1])}<small>°C</small>` : "–", warm ? warm[0].name : ""], ["Coolest", cool ? `${t1(cool[1])}<small>°C</small>` : "–", cool ? cool[0].name : ""],
     ["Warm-up", sp.length ? `${Math.round(sp.reduce((a, b) => a + b, 0) / sp.length)}<small>min/°C</small>` : "–", sp.length ? `average of ${sp.length} room${sp.length > 1 ? "s" : ""}` : "not learned yet"]]
     .map(([l, v, e]) => `<div class="stat"><span>${l}</span><b class="num">${v}</b><em>${esc(e)}</em></div>`).join("");
+}
+function enRender(buckets, idx, hourly) {
+  const card = $("#en-card"); card.hidden = !EN.enabled; if (!EN.enabled) return;
+  const hs = EN.hours || [], from = buckets[0].getTime() / 1000;
+  const heat = buckets.map(() => null), cost = buckets.map(() => null), water = buckets.map(() => null);
+  for (const [t, he, wa, p] of hs) { if (t < from) continue; const i = idx(t);
+    if (he != null) { heat[i] = (heat[i] || 0) + he; if (p != null) cost[i] = (cost[i] || 0) + he * p; }
+    if (wa != null) water[i] = (water[i] || 0) + wa; }
+  const S = enSum(hs, from), days = HX.days === 1 ? "24 hours" : HX.days + " days";
+  $("#en-kpis").innerHTML = `<div><span>Heating cost</span><b class="num">${eur(S.hc)}</b><em>last ${days}</em></div>
+    <div><span>Heating energy</span><b class="num">${kwh(S.hk)}<small>kWh</small></b><em>heat pump</em></div>
+    <div><span>Hot water</span><b class="num">${eur(S.wc)}</b><em>${kwh(S.wk)} kWh</em></div>`;
+  const R = { buckets, bucket: hourly ? "hour" : "day", kind: HX.days === 7 ? "week" : HX.days === 1 ? "day" : "month", label: `Heating energy, last ${days}` };
+  if (!S.n) $("#hx-energy").innerHTML = `<p class="hx-empty">No heat pump readings in this period yet.</p>`;
+  else hxChart($("#hx-energy"), R, { bars: { vals: heat, unit: "kWh", color: "var(--c-activity)" }, lines: [],
+    tip: i => [heat[i] != null ? `Heating ${kwh(heat[i])} kWh · ${eur(cost[i])}` : "No reading", water[i] != null ? `Hot water ${kwh(water[i])} kWh` : ""] });
+  const p = EN.price;
+  $("#en-note").textContent = p ? `at € ${p.eur.toFixed(3)}/kWh` : "";
+  $("#en-foot").textContent = `Electricity the heat pump used for heating, including the backup heater, times your Vienna price${p?.supplier ? ` (${p.supplier}${p.tariff ? ", " + p.tariff : ""})` : ""}. The yearly base fee isn't included. Hours without a heat pump reading are left out.`;
 }
 function renderInsightsSide() {
   const zs = zones(), mx = Math.max(60, ...zs.map(z => z.mpd || 0)), def = D.schedule?.settings?.default_mpd ?? 120;
@@ -1061,7 +1120,7 @@ function renderSettings() {
   $("#theme-seg").innerHTML = [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => `<button data-theme="${v}" aria-pressed="${t === v}">${l}</button>`).join("");
   const b = B();
   $("#conn-kv").innerHTML = `<dt>App</dt><dd>${live ? (up ? "Connected" : "Reconnecting") : "Example data"}</dd><dt>Heating controller</dt><dd>${b.online ? "Answering" : "Not answering"}</dd>
-    <dt>Changes</dt><dd>${canWrite() ? "On hold" : "Allowed"}</dd><dt>Bridge</dt><dd class="num">${esc(b.version || "–")}</dd><dt>Outside temperature</dt><dd>${esc(D.outside?.source === "Tempest" ? "Tempest station" : D.outside?.source === "Open-Meteo" ? "Weather service (Open-Meteo)" : "–")}</dd>`;
+    <dt>Changes</dt><dd>${canWrite() ? "On hold" : "Allowed"}</dd><dt>Bridge</dt><dd class="num">${esc(b.version || "–")}</dd><dt>Electricity price</dt><dd class="num">${enToday?.price ? `€ ${enToday.price.eur.toFixed(3)}/kWh` : "–"}</dd><dt>Outside temperature</dt><dd>${esc(D.outside?.source === "Tempest" ? "Tempest station" : D.outside?.source === "Open-Meteo" ? "Weather service (Open-Meteo)" : "–")}</dd>`;
   $("#conn-note").textContent = canWrite() || "The app sends changes to the Intellihome bridge on the Home Assistant Green, which holds the only connection to the heating controller.";
 }
 const getTheme = () => lsGet("theme") || "auto";
@@ -1140,13 +1199,14 @@ async function goLive() {
   const es = new EventSource("api/events");
   es.addEventListener("snapshot", e => {
     const d = JSON.parse(e.data); up = d.connected;
-    if (d.house) { D = d; live = true; }
+    if (d.house) { const first = !live; D = d; live = true; if (first) refreshToday(); }
     bridgeErr = d.house ? null : d.error;
     soon();
   });
   es.onerror = () => { up = false; soon(); };
 }
 go(location.hash.slice(1) || lsGet("tab") || "home");
+refreshToday();
 let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 150); });
 goLive().catch(console.warn);
 </script>
