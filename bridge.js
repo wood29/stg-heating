@@ -119,7 +119,9 @@ const LAT = Number(process.env.WEATHER_LAT || 48.2), LON = Number(process.env.WE
 let wxErr = "";
 // Preferred: Mike's own Tempest weather station, read (read-only) from the Vienna Home Assistant.
 // Needs HA_URL and HA_TOKEN; the weather service below is the fallback.
-let HA_URL = (process.env.HA_URL || "http://192.168.178.149:8123").replace(/\/+$/, ""), HA_TOKEN = process.env.HA_TOKEN || "";
+// Inside the Seewärme container, HA_URL / HA_TOKEN belong to St. Gilgen's Home Assistant: never use them for Vienna.
+const ENV_HA_URL = EMBEDDED ? process.env.WIEN_HA_URL : process.env.HA_URL, ENV_HA_TOKEN = EMBEDDED ? process.env.WIEN_HA_TOKEN : process.env.HA_TOKEN;
+let HA_URL = (ENV_HA_URL || "http://192.168.178.149:8123").replace(/\/+$/, ""), HA_TOKEN = ENV_HA_TOKEN || "";
 const OUTSIDE = process.env.OUTSIDE_ENTITY || "sensor.ws_temperature";
 let haErr = "";
 async function tempest() {
