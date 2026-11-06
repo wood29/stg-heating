@@ -23,7 +23,8 @@ let PASSWORD = process.env.BRIDGE_PASSWORD || "";
 // Secrets can also be typed once in the app (Settings > Connection setup); they are kept on the NAS in
 // data/secrets.json (readable only by this app) and never sent back to any browser.
 const SECRETS = path.join(path.dirname(fileURLToPath(import.meta.url)), "data", "secrets.json");
-const PORT = Number(process.env.PORT || 8080);
+const EMBEDDED = process.env.WIEN_EMBEDDED === "1";          // running inside the Seewärme container
+const PORT = EMBEDDED ? 8081 : Number(process.env.PORT || 8080);
 const ALLOWED_USERS = (process.env.ALLOWED_USERS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), "public");
 
@@ -324,6 +325,6 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => { console.log(`Wien Wärme listening on :${PORT}`); startUpdater(path.dirname(PUBLIC)); });
+server.listen(PORT, EMBEDDED ? "127.0.0.1" : undefined, () => { console.log(`Wien Wärme listening on :${PORT}${EMBEDDED ? " (inside Seewärme, at /wien/)" : ""}`); if (!EMBEDDED) startUpdater(path.dirname(PUBLIC)); });
 start();
-for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { server.close(); process.exit(0); });
+if (!EMBEDDED) for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { server.close(); process.exit(0); });

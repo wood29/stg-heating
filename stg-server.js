@@ -314,12 +314,22 @@ function who(req) {
   return (req.headers["tailscale-user-login"] || "").toString().toLowerCase();
 }
 
+// Wien Wärme runs inside this container (bridge.js on 127.0.0.1:8081); pass /wien/... through to it.
+function toWien(req, res, url) {
+  const up = http.request({ host: "127.0.0.1", port: 8081, method: req.method, path: url.pathname.slice(5) + url.search,
+    headers: { ...req.headers, host: "127.0.0.1:8081" } }, r => { res.writeHead(r.statusCode, r.headers); r.pipe(res); });
+  up.on("error", () => { if (!res.headersSent) json(res, 502, { error: "Wien Wärme is starting, try again in a moment." }); else res.end(); });
+  res.on("close", () => up.destroy());
+  req.pipe(up);
+}
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   if (url.pathname === "/healthz") return json(res, 200, { ok: true, connected });
   if (ALLOWED_USERS.length && !ALLOWED_USERS.includes(who(req))) {
     return json(res, 403, { error: "This app is only for the St. Gilgen family. Open it through Tailscale with your own account." });
   }
+  if (url.pathname === "/wien") { res.writeHead(301, { Location: "/wien/" }); return res.end(); }
+  if (url.pathname.startsWith("/wien/")) return toWien(req, res, url);
   try {
     if (url.pathname === "/api/health") return json(res, 200, { ok: true, connected, user: who(req) || null });
     if (url.pathname === "/api/events") {

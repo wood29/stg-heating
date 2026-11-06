@@ -11,8 +11,9 @@ const t1 = v => (Math.round(v * 10) / 10).toFixed(1);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 function toast(t) { const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2600); }
 const toInput = d => { if (!d) return ""; const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
-const lsGet = k => { try { return localStorage.getItem("stg." + k); } catch { return null; } };
-const lsSet = (k, v) => { try { localStorage.setItem("stg." + k, v); } catch { } };
+const LS = document.documentElement.dataset.brand === "wien" ? "wien." : "stg.";   // each app keeps its own settings
+const lsGet = k => { try { return localStorage.getItem(LS + k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(LS + k, v); } catch { } };
 function setTheme(v) {
   lsSet("theme", v);
   if (v === "light" || v === "dark") document.documentElement.dataset.theme = v; else delete document.documentElement.dataset.theme;

@@ -2,9 +2,9 @@
  "name": "Wien Wärme",
  "short_name": "Wien Wärme",
  "description": "Heating for the Vienna house",
- "id": "/",
- "start_url": "/",
- "scope": "/",
+ "id": "wien",
+ "start_url": "./",
+ "scope": "./",
  "display": "standalone",
  "orientation": "any",
  "background_color": "#A90012",
@@ -32,11 +32,11 @@
  "shortcuts": [
   {
    "name": "Rooms",
-   "url": "/#rooms"
+   "url": "./#rooms"
   },
   {
    "name": "Plan",
-   "url": "/#plan"
+   "url": "./#plan"
   }
  ]
 }

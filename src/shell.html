@@ -10,7 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="{{NAME}}">
-<script>try{var t=localStorage.getItem("stg.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+<script>try{var t=localStorage.getItem((document.documentElement.dataset.brand==="wien"?"wien.":"stg.")+"theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 <meta name="theme-color" content="{{BAR_LIGHT}}" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="{{BAR_DARK}}" media="(prefers-color-scheme: dark)">
 <style>
