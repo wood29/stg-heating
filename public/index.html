@@ -676,7 +676,7 @@ input[type="range"]{accent-color:var(--accent)}
         </div>
         <div class="stack">
           <div class="card"><div class="card-h"><h2>What will happen</h2></div><dl class="kv" id="st-plan"></dl></div>
-          <div class="card"><div class="card-h"><h2>Past stays</h2><span class="small muted">electricity for the whole flat</span></div><div class="stays" id="st-log"><p class="note">Loading…</p></div></div>
+          <div class="card"><div class="card-h"><h2>Past stays</h2><span class="small muted">whole flat, from warming up to departure</span></div><div class="stays" id="st-log"><p class="note">Loading…</p></div></div>
           <div class="card stack">
             <div class="card-h" style="margin:0"><h2>Leaving for good?</h2></div>
             <p class="note">Ends the stay now and lowers every room to the away temperature until the next stay.</p>
@@ -1381,12 +1381,12 @@ async function loadStays() {
   const el = $("#st-log");
   let list = null;
   if (live) list = await fetch("api/stays").then(r => r.ok ? r.json() : null).then(d => d?.stays).catch(() => null);
-  else list = [{ arrival: Date.parse("2026-10-23T18:00:00+02:00"), departure: Date.parse("2026-11-01T12:00:00+01:00"), nights: 9, kwh: 286.4, eur: 119.6, complete: true }];
+  else list = [{ arrival: Date.parse("2026-10-23T18:00:00+02:00"), heat_from: Date.parse("2026-10-23T09:30:00+02:00"), departure: Date.parse("2026-11-01T12:00:00+01:00"), nights: 9, kwh: 286.4, eur: 119.6, complete: true }];
   if (!list) { el.innerHTML = `<p class="note">The stay log isn't available right now.</p>`; return; }
   if (!list.length) { el.innerHTML = `<p class="note">No finished stays yet. Each stay is added here when it ends.</p>`; return; }
   const dfmt = (t, y) => new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(y ? { year: "numeric" } : {}) });
   const eur = v => v == null ? "–" : "€ " + v.toFixed(2), kwh = v => v == null ? "–" : Math.round(v).toLocaleString("en-GB") + " kWh";
-  const rows = list.map(x => `<div class="stay-row"><div><b>${dfmt(x.arrival)} – ${dfmt(x.departure, true)}</b><br><span>${x.nights} night${x.nights === 1 ? "" : "s"}${x.complete ? "" : " · meter data still arriving"}</span></div>
+  const rows = list.map(x => `<div class="stay-row"><div><b>${dfmt(x.arrival)} – ${dfmt(x.departure, true)}</b><br><span>${x.nights} night${x.nights === 1 ? "" : "s"}${x.heat_from ? ` · incl. warming up from ${new Date(x.heat_from).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" })}` : ""}${x.complete ? "" : " · meter data still arriving"}</span></div>
     <div class="v">${kwh(x.kwh)}<small>electricity</small></div><div class="v">${eur(x.eur)}<small>cost</small></div></div>`).join("");
   const year = new Date().getFullYear(), ys = list.filter(x => new Date(x.arrival).getFullYear() === year);
   const tk = ys.reduce((a, x) => a + (x.kwh || 0), 0), te = ys.reduce((a, x) => a + (x.eur || 0), 0), tn = ys.reduce((a, x) => a + x.nights, 0);

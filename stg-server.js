@@ -274,12 +274,18 @@ const STAYS = path.join(path.dirname(PUBLIC), "data", "stays.json");
 let stays = null;
 const tsOf = id => { const a = states[id]?.attributes; return a?.timestamp != null ? a.timestamp * 1000 : null; };
 async function loadStays() { if (stays) return stays; try { stays = JSON.parse(await readFile(STAYS, "utf8")); } catch { stays = []; } return stays; }
+// when the heating started for this stay (pre-warming before arrival): sensor.stg_heating_start
+function heatFrom(arr) {
+  const t = Date.parse(states["sensor.stg_heating_start"]?.state);
+  return Number.isFinite(t) && t <= arr && arr - t < 48 * 3600e3 ? t : null;
+}
+const saveStays = async () => { await mkdir(path.dirname(STAYS), { recursive: true }); await writeFile(STAYS, JSON.stringify(stays, null, 1)); };
 async function logStay(arr, dep, how) {
   await loadStays();
   if (!arr || !dep || dep <= arr || stays.some(x => Math.abs(x.arrival - arr) < 3600e3)) return;
-  stays.push({ arrival: arr, departure: dep, logged: Date.now(), how });
+  stays.push({ arrival: arr, departure: dep, heat_from: heatFrom(arr), logged: Date.now(), how });
   stays.sort((a, b) => b.arrival - a.arrival);
-  await mkdir(path.dirname(STAYS), { recursive: true }); await writeFile(STAYS, JSON.stringify(stays, null, 1));
+  await saveStays();
   console.log(`Stay logged: ${new Date(arr).toISOString()} - ${new Date(dep).toISOString()} (${how})`);
 }
 // a stay that ended (planned departure passed, stay no longer active) and isn't in the log yet
@@ -290,16 +296,21 @@ function checkStayEnded() {
 const stayCost = new Map();
 async function stayList() {
   await loadStays();
+  // stays logged before the pre-warming was recorded: take it from the heating-start sensor if it still belongs to that stay
+  let changed = false;
+  for (const x of stays) if (x.heat_from == null && Math.abs((tsOf("input_datetime.stg_arrival") ?? 0) - x.arrival) < 60e3) { const h = heatFrom(x.arrival); if (h) { x.heat_from = h; changed = true; } }
+  if (changed) await saveStays().catch(() => {});
   const out = [];
   for (const x of stays) {
-    const key = `${x.arrival}-${x.departure}`, hit = stayCost.get(key);
+    const from = x.heat_from ?? x.arrival;
+    const key = `${from}-${x.departure}`, hit = stayCost.get(key);
     let c = hit && (hit.final || Date.now() - hit.at < 30 * 60e3) ? hit : null;
     if (!c) {
       try {
-        const r = await haSend({ type: "recorder/statistics_during_period", start_time: new Date(x.arrival).toISOString(), end_time: new Date(x.departure).toISOString(),
+        const r = await haSend({ type: "recorder/statistics_during_period", start_time: new Date(Math.floor(from / 3600e3) * 3600e3).toISOString(), end_time: new Date(x.departure).toISOString(),
           statistic_ids: [ENERGY_STAT, COST_STAT], period: "hour", types: ["change"] });
         const sum = id => (r[id] || []).reduce((a, row) => a + (row.change ?? 0), 0), n = (r[ENERGY_STAT] || []).length;
-        const hours = Math.round((x.departure - x.arrival) / 3600e3);
+        const hours = Math.round((x.departure - from) / 3600e3);
         c = { kwh: n ? sum(ENERGY_STAT) : null, eur: (r[COST_STAT] || []).length ? sum(COST_STAT) : null, complete: n >= hours - 2, at: Date.now() };
         c.final = c.complete && Date.now() - x.departure > 4 * 864e5;
         stayCost.set(key, c);
