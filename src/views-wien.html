@@ -24,13 +24,13 @@
 
     <!-- ROOMS -->
     <section class="view" id="v-rooms" hidden aria-label="Rooms">
-      <div class="page-h"><div class="eyebrow">Rooms</div><h1>The house, floor by floor</h1></div>
+      <div class="page-h"><h1>Rooms</h1></div>
       <div class="stack" id="floors"></div>
     </section>
 
     <!-- PLAN -->
     <section class="view" id="v-plan" hidden aria-label="Weekly plans">
-      <div class="page-h"><div class="eyebrow">Plan</div><h1>Weekly plans</h1><p class="sub">Each switch time sets the room's temperature. With “Warm by plan time” on, heating starts early enough to be warm at that time.</p></div>
+      <div class="page-h"><h1>Plans</h1><p class="sub">Each switch time sets the room's temperature.</p></div>
       <div class="chips" id="pl-rooms" role="group" aria-label="Room"></div>
       <div class="g-two">
         <div class="card" id="pl-edit"></div>
@@ -43,7 +43,7 @@
 
     <!-- INSIGHTS -->
     <section class="view" id="v-insights" hidden aria-label="Insights">
-      <div class="page-h"><div class="eyebrow">Insights</div><h1>Temperatures over time</h1></div>
+      <div class="page-h"><h1>Insights</h1></div>
       <div class="hx-bar">
         <div class="seg seg4" role="group" aria-label="Period" id="hx-seg"><button data-hx="1">Day</button><button data-hx="7">Week</button><button data-hx="30">Month</button><button data-hx="60">60 days</button></div>
       </div>
@@ -53,19 +53,16 @@
         <div class="legend"><span><i style="background:var(--c-activity)"></i>Heating, kWh</span></div><p class="note" id="en-foot" style="margin-top:8px"></p></div>
       <div class="card hx-card"><div class="card-h"><h2>Temperatures</h2><span class="small muted" id="hx-note"></span></div><div class="chips" id="hx-tchips"></div><div class="hx-chart" id="hx-temp"></div>
         <div class="legend" id="hx-legend"></div></div>
-      <div class="g-two">
-        <div class="card"><div class="card-h"><h2>Warm-up speed</h2><span class="small muted">minutes per °C</span></div><div id="ebars"></div><p class="note" id="wu-note" style="margin-top:10px"></p></div>
-        <div class="card"><div class="card-h"><h2>Rooms</h2></div><dl class="kv" id="health"></dl></div>
-      </div>
     </section>
 
     <!-- SETTINGS -->
     <section class="view" id="v-settings" hidden aria-label="Settings">
-      <div class="page-h"><div class="eyebrow">Settings</div><h1>House rules</h1><p class="sub">They live in the Intellihome bridge and keep working with no app open.</p></div>
+      <div class="page-h"><h1>Settings</h1><p class="sub">Stored in the Intellihome bridge; they work with the app closed.</p></div>
       <div class="g-two">
         <div class="card" id="settings"></div>
         <div class="stack">
           <div class="card"><div class="setting" style="display:block;border-top:0;padding-top:2px"><div style="margin-bottom:12px"><b>Appearance</b><p>Auto follows this device's light or dark setting.</p></div><div class="seg seg3" role="group" aria-label="Appearance" id="theme-seg"></div></div></div>
+          <div class="card" id="diag"><div class="card-h"><h2>Diagnostics</h2></div><div class="setting" style="display:block"><b style="display:block;margin-bottom:6px">Warm-up speed <span class="small muted" style="font-weight:500">min per °C</span></b><div id="ebars"></div><p class="note" id="wu-note" style="margin-top:6px"></p></div><div class="setting" style="display:block"><b style="display:block;margin-bottom:8px">Rooms</b><dl class="kv" id="health"></dl></div></div>
           <div class="card" id="setup-card"><div class="card-h"><h2>Connection setup</h2></div>
             <p class="note" id="setup-note">Typed once here and kept only on the NAS; never shown again.</p>
             <form id="setup-form" autocomplete="off">

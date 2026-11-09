@@ -580,6 +580,127 @@ input[type="range"]{accent-color:var(--accent)}
 input[type="datetime-local"],input[type="date"],input[type="time"],input.time{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;box-sizing:border-box;text-align:left;font-family:inherit;color:var(--ink)}
 input[type="datetime-local"]::-webkit-date-and-time-value,input[type="time"]::-webkit-date-and-time-value,input[type="date"]::-webkit-date-and-time-value{text-align:left;margin:0}
 .field{min-width:0}
+
+/* ==========================================================================
+   Density pass (Nov 2026): tighter rhythm, smaller hero, hairline lists.
+   Spacing scale: 4 · 8 · 10 · 12 · 16. Cards 16 px inside, 10 px apart.
+   ========================================================================== */
+/* calmer secondary text, darker for contrast (AA on the cream and pale-blue backgrounds) */
+:root[data-brand="see"]:not([data-theme="dark"]){--ink-2:#4E535B;--ink-3:#646872}
+:root[data-brand="wien"]:not([data-theme="dark"]){--ink-2:#505055;--ink-3:#65686F}
+@media (prefers-color-scheme:dark){:root[data-brand="see"]:not([data-theme="light"]){--ink-2:#B9C3CD;--ink-3:#8C9DAB}:root[data-brand="wien"]:not([data-theme="light"]){--ink-2:#B9C3CD;--ink-3:#8D96A0}}
+/* frame */
+main{padding-top:calc(6px + env(safe-area-inset-top,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+.topbar{min-height:40px;margin-bottom:10px}
+.view,.stack,.g-home,.g-two,.g-rooms,.strip-wrap{gap:10px}
+.page-h{margin:2px 0 0}
+.page-h .eyebrow{display:none}
+h1{font-size:22px;letter-spacing:-.02em;margin:0}
+.page-h .sub{font-size:13.5px;margin-top:2px}
+h2{font-size:15px}
+.card{padding:16px}
+.card-h{margin-bottom:10px}
+.link{min-height:32px;padding:4px 0;font-size:13px}
+.note,.small{font-size:12.5px}
+/* hero: one big number, quiet surroundings, no glow */
+.brand-hero{padding:16px 18px 18px;box-shadow:none}
+.temp{font-size:64px;margin-top:8px}
+.temp sup{font-size:.34em}
+.outside{padding-bottom:4px}.outside span{font-size:12px}.outside b{font-size:24px}
+.status{font-size:17px;margin-top:10px}
+.brand-hero .sub{margin-top:2px;font-size:14px}
+.air-note{margin-top:12px;padding:9px 12px;border-radius:12px;font-size:13px}
+.facts{margin-top:10px;font-size:13px}.facts b{font-size:14px}
+.ava{width:32px;height:32px;font-size:12px}
+/* room strip: straight hairline dividers, not curved fragments */
+.strip{padding:4px}
+.strip button{padding:9px 2px 8px;gap:3px;position:relative;border-radius:10px}
+.strip button+button,.strip.many button:nth-child(4n+1),.strip.many button:first-child{box-shadow:none}
+.strip button+button:before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:1px;background:var(--line)}
+.strip b{font-size:20px}.strip span{font-size:12px}
+@media (max-width:420px){.strip button{padding:8px 2px 7px}.strip b{font-size:18px}}
+/* many rooms (Vienna): one row you swipe sideways on the phone */
+@media (max-width:759px){
+  .strip.many{display:flex;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none}
+  .strip.many::-webkit-scrollbar{display:none}
+  .strip.many button{flex:0 0 76px;scroll-snap-align:start}
+}
+.bench-row{padding:10px 14px}.bench-row b{font-size:18px}
+/* modes */
+.seg{padding:3px;border-radius:12px;gap:3px}
+.seg button{min-height:40px;font-size:14px;border-radius:9px}
+.mode-note{margin:6px 2px 0;font-size:12.5px;min-height:0}
+.pills{margin-top:10px;gap:6px}
+.pill{min-height:38px;padding:7px 13px;font-size:13px}
+/* weather */
+.wx-grid{gap:12px}
+.wx-now{gap:12px}.wx-now>.wxi{width:40px;height:40px}
+.wx-t{font-size:38px}.wx-c{font-size:13px;margin-top:2px}
+.wx-kv{font-size:12.5px;gap:2px 12px}
+.wx-hours{padding-top:10px;gap:4px}.wx-hours div{gap:4px}.wx-hours b{font-size:13.5px}.wx-hours .wxi{width:20px;height:20px}
+.wx-days{padding-top:10px;gap:4px}.wx-days div{gap:3px}.wx-days b{font-size:14px}.wx-days em{font-size:12.5px}
+.wxi{width:24px;height:24px}
+/* today + stay timeline */
+.today .bar{height:10px;margin:4px 0 6px}
+.today .keys{margin-top:10px}.today .keys b{font-size:15px}
+.tl{margin-top:2px}.tl div{padding-top:18px}.tl b{font-size:13px}
+/* cards whose content brings its own padding */
+.card.strip{padding:4px}.card.bench-card{padding:0}.card.flat{padding:8px 8px 12px}
+.bench-row{min-height:56px}
+.card.rooms-card{padding:2px 16px}
+.room .t small{display:none}
+/* lists: thin straight dividers, no boxes inside cards */
+.rooms .room{border-radius:0}
+.room{padding:10px 0;min-height:56px;gap:1px 12px}
+.room b{font-size:15px}.room .meta{font-size:12.5px}
+.room .t{font-size:22px}.room .t small{font-size:11.5px}
+.setting{padding:12px 0}
+.kv{gap:8px 14px;font-size:13.5px}
+.ebar{padding:4px 0;font-size:13px}
+.stay-row{padding:10px 0}.rule{padding:10px 0}.wk-row{padding:7px 0}
+.who .p{padding:8px 0}
+/* buttons, inputs */
+.btn{min-height:44px;padding:11px 16px;font-size:14.5px}
+input[type="datetime-local"],input.time,select{min-height:44px;padding:10px 12px}
+.stepper button{width:40px;height:40px}
+/* insights: summary figures as one card with hairline dividers, shorter charts */
+.hx-bar,.hx-kpis,.hx-card{margin-bottom:0}
+.hx-bar{gap:8px}
+.hx-nav b{font-size:15.5px}.hx-nav button{width:40px;height:40px}
+.stats.hx-kpis{gap:1px;background:var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.hx-kpis .stat{background:var(--card);border-radius:0;box-shadow:none;padding:11px 14px}
+.hx-kpis .stat span{font-size:12px}
+.hx-kpis .stat b{font-size:21px;margin-top:1px}
+.hx-kpis .stat em{font-size:11.5px;margin-top:2px}
+.hx-chart{min-height:140px}
+.hx-empty{padding:36px 0}
+.chips{margin:-2px 0 8px}.chip{min-height:30px;padding:5px 10px}
+.legend{margin-top:6px;font-size:11.5px;gap:12px}
+.en-kpis b{font-size:19px}
+/* sheet */
+dialog.sheet .in{padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));gap:12px}
+.sheet .big{font-size:52px}
+@media (min-width:760px){
+  main{padding:calc(22px + env(safe-area-inset-top,0px)) 28px 40px}
+  .view,.stack,.g-two,.g-rooms{gap:12px}
+  h1{font-size:24px}
+  .brand-hero{padding:20px 22px}
+  .temp{font-size:76px}
+  /* home: hero on the left spans the right-hand column, no empty gap beside it */
+  .g-home{gap:12px;grid-template-areas:"hero today" "hero stay" "hero ctrl" "strip strip" "wx wx";grid-template-rows:auto auto 1fr}
+  .g-home>.brand-hero{align-self:stretch;display:flex;flex-direction:column}
+  .g-home>.brand-hero .facts{margin-top:auto;padding-top:12px}
+  .g-rooms .card.flat{padding:12px 14px 14px}
+  .card.rooms-card{padding:0}
+  .rooms .room{border-radius:var(--r);min-height:112px;padding:14px;gap:8px}
+  .rooms .room .t{font-size:clamp(24px,2.6vw,32px)}
+  .stats.hx-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .stats.stats3.hx-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (min-width:1180px){
+  main{padding:30px 40px 48px}
+  .temp{font-size:76px}
+}
 </style>
 
 <div class="shell">

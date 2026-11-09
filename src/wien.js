@@ -156,7 +156,7 @@ function renderHome() {
     (enToday?.n ? `<span><b class="num">${eur(enToday.hc)}</b> heating today</span>` : "");
   $("#h-rooms").innerHTML = zs.map(z => `<button data-zone="${z.slug}" aria-label="${z.name} ${z.temp != null ? t1(z.temp) + " degrees" : ""}, ${z.text}"><span>${z.short}</span><b class="num">${z.temp != null ? t1(z.temp) + "°" : "–"}</b><i class="${z.off ? "off" : z.state}"></i></button>`).join("");
   $("#seg").innerHTML = [["plans", "Plans"], ["away", "Away"]].map(([v, l]) => `<button data-away="${v === "away"}" aria-pressed="${(v === "away") === !!away}">${l}</button>`).join("");
-  $("#mode-note").textContent = away ? "Away pauses every weekly plan. Rooms keep their temperature." : "Weekly plans run in the bridge, even with no app open.";
+  $("#mode-note").textContent = away ? "All plans paused; rooms hold their temperature." : "Weekly plans are running.";
   const pre = !!D.schedule?.settings?.preheat;
   $("#p-warmby").setAttribute("aria-pressed", pre);
   // coming up: plan switches today and tomorrow
@@ -167,7 +167,7 @@ function renderHome() {
       : `<p class="note">${away ? "Plans are paused." : "No plan switches coming up. Rooms hold their temperature."}</p>`);
   // warm-ups
   const meas = zs.filter(z => z.measuring), learned = zs.filter(z => z.mpd != null);
-  $("#h-warm").innerHTML = `<div class="card-h"><h2>Warm-up learning</h2><button class="link" data-go="insights">Speeds</button></div>` +
+  $("#h-warm").innerHTML = `<div class="card-h"><h2>Warm-up learning</h2><button class="link" data-go="settings">Speeds</button></div>` +
     `<p class="note">${learned.length ? `Learned for ${learned.map(z => `${z.name.toLowerCase()} (${Math.round(z.mpd)} min/°C)`).join(", ")}.` : "No room has a learned warm-up speed yet."}` +
     `${meas.length ? ` Measuring now: ${meas.map(z => z.name.toLowerCase()).join(", ")}.` : ""}</p>`;
 }

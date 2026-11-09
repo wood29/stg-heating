@@ -42,7 +42,7 @@ function hxRange(kind, a) {
 }
 // one chart: optional bars (left axis), lines (left axis, or right axis for bars + line), hover/tap inspector
 function hxChart(el, R, o) {
-  const W = Math.max(280, el.clientWidth || 600), H = Math.round(Math.min(260, Math.max(180, W * .38)));
+  const W = Math.max(280, el.clientWidth || 600), H = Math.round(Math.min(190, Math.max(140, W * .3)));
   const padL = 34, padR = o.bars && o.lines?.length ? 34 : 10, top = 24, bot = 26, iw = W - padL - padR, ih = H - top - bot, n = R.buckets.length, bw = iw / n;
   const x = i => padL + i * bw + bw / 2;
   const nice = (lo, hi, count = 4) => { if (!(hi > lo)) { hi = lo + 1; } const span = hi - lo, raw = span / count, mag = 10 ** Math.floor(Math.log10(raw)), st0 = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) || raw; const a = Math.floor(lo / st0) * st0, b = Math.ceil(hi / st0) * st0; const t = []; for (let v = a; v <= b + 1e-9; v += st0) t.push(+v.toFixed(6)); return { a, b, t }; };
