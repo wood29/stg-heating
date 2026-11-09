@@ -411,6 +411,22 @@ function renderSheet() {
     <button class="btn ghost" data-go="settings" data-close>Change comfort temperature</button>`;
 }
 
+/* past stays: dates, nights, electricity (smart meter) and cost */
+async function loadStays() {
+  const el = $("#st-log");
+  let list = null;
+  if (live) list = await fetch("api/stays").then(r => r.ok ? r.json() : null).then(d => d?.stays).catch(() => null);
+  else list = [{ arrival: Date.parse("2026-10-23T18:00:00+02:00"), departure: Date.parse("2026-11-01T12:00:00+01:00"), nights: 9, kwh: 286.4, eur: 119.6, complete: true }];
+  if (!list) { el.innerHTML = `<p class="note">The stay log isn't available right now.</p>`; return; }
+  if (!list.length) { el.innerHTML = `<p class="note">No finished stays yet. Each stay is added here when it ends.</p>`; return; }
+  const dfmt = (t, y) => new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(y ? { year: "numeric" } : {}) });
+  const eur = v => v == null ? "–" : "€ " + v.toFixed(2), kwh = v => v == null ? "–" : Math.round(v).toLocaleString("en-GB") + " kWh";
+  const rows = list.map(x => `<div class="stay-row"><div><b>${dfmt(x.arrival)} – ${dfmt(x.departure, true)}</b><br><span>${x.nights} night${x.nights === 1 ? "" : "s"}${x.complete ? "" : " · meter data still arriving"}</span></div>
+    <div class="v">${kwh(x.kwh)}<small>electricity</small></div><div class="v">${eur(x.eur)}<small>cost</small></div></div>`).join("");
+  const year = new Date().getFullYear(), ys = list.filter(x => new Date(x.arrival).getFullYear() === year);
+  const tk = ys.reduce((a, x) => a + (x.kwh || 0), 0), te = ys.reduce((a, x) => a + (x.eur || 0), 0), tn = ys.reduce((a, x) => a + x.nights, 0);
+  el.innerHTML = rows + `<div class="stay-tot"><span>${year}: <b>${ys.length}</b> stay${ys.length === 1 ? "" : "s"} · <b>${tn}</b> nights</span><span><b>${kwh(tk)}</b> · <b>${eur(te)}</b></span></div>`;
+}
 function renderStay() {
   if (document.activeElement?.closest?.("#v-stay")) return;
   $("#st-on").checked = st(E.planned) === "on";
@@ -601,6 +617,7 @@ function go(tab) {
   document.querySelectorAll(".view").forEach(v => v.hidden = v.id !== "v-" + tab);
   lsSet("tab", tab); window.scrollTo(0, 0); render();
   if (tab === "insights") hxLoad();
+  if (tab === "stay") loadStays();
   if (tab === "bench") { BX.data = null; BT.dirty = false; renderBench(); }
 }
 

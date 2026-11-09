@@ -6,7 +6,7 @@
 // controls listed in ALLOWED below. No npm dependencies (Node 22+).
 
 import http from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { startUpdater } from "./updater.js";
@@ -140,11 +140,18 @@ function connect() {
         for (const k of Object.keys(states)) delete states[k];
         for (const s of list) if (relevant(s)) states[s.entity_id] = s;
         broadcast("snapshot", { connected, states });
-        enforceFixed(); ensureBenchTimer();
+        enforceFixed(); ensureBenchTimer(); checkStayEnded();
       }).catch(e => console.error(e.message));
     } else if (m.type === "event" && m.event?.event_type === "state_changed") {
       const { entity_id, new_state } = m.event.data;
-      if (new_state && relevant(new_state)) { states[entity_id] = new_state; broadcast("state", new_state); }
+      if (new_state && relevant(new_state)) {
+        const was = states[entity_id]?.state; states[entity_id] = new_state; broadcast("state", new_state);
+        if (entity_id === "binary_sensor.stg_stay_active" && was === "on" && new_state.state === "off") {
+          // the stay just ended: log it from the planned arrival to now (or the planned departure, if earlier)
+          const arr = tsOf("input_datetime.stg_arrival"), dep = tsOf("input_datetime.stg_departure");
+          logStay(arr, dep ? Math.min(dep, Date.now()) : Date.now(), "stay ended").catch(e => console.error("Stay log:", e.message));
+        }
+      }
       else if (!new_state && states[entity_id]) { delete states[entity_id]; broadcast("removed", { entity_id }); }
     } else if (m.type === "result" && pending.has(m.id)) {
       const p = pending.get(m.id); pending.delete(m.id); clearTimeout(p.t);
@@ -259,6 +266,50 @@ function enforceFixed() {
   if (cur !== BENCH_WATTS) haSend({ type: "call_service", domain: "input_number", service: "set_value", service_data: { entity_id: "input_number.stg_bench_power", value: BENCH_WATTS } })
     .then(() => console.log(`Bench warmer power set to ${BENCH_WATTS} W`)).catch(e => console.error("Bench power:", e.message));
 }
+// ---------------------------------------------------------------- stay log
+// Every finished stay is kept in data/stays.json: arrival, departure and nights. Electricity use and cost come
+// from the smart meter (long-term statistics) for that period, worked out when the log is opened, so they fill
+// in once the meter data arrive (Salzburg Netz delivers them a day or so later).
+const STAYS = path.join(path.dirname(PUBLIC), "data", "stays.json");
+let stays = null;
+const tsOf = id => { const a = states[id]?.attributes; return a?.timestamp != null ? a.timestamp * 1000 : null; };
+async function loadStays() { if (stays) return stays; try { stays = JSON.parse(await readFile(STAYS, "utf8")); } catch { stays = []; } return stays; }
+async function logStay(arr, dep, how) {
+  await loadStays();
+  if (!arr || !dep || dep <= arr || stays.some(x => Math.abs(x.arrival - arr) < 3600e3)) return;
+  stays.push({ arrival: arr, departure: dep, logged: Date.now(), how });
+  stays.sort((a, b) => b.arrival - a.arrival);
+  await mkdir(path.dirname(STAYS), { recursive: true }); await writeFile(STAYS, JSON.stringify(stays, null, 1));
+  console.log(`Stay logged: ${new Date(arr).toISOString()} - ${new Date(dep).toISOString()} (${how})`);
+}
+// a stay that ended (planned departure passed, stay no longer active) and isn't in the log yet
+function checkStayEnded() {
+  const arr = tsOf("input_datetime.stg_arrival"), dep = tsOf("input_datetime.stg_departure");
+  if (arr && dep && dep < Date.now() && states["binary_sensor.stg_stay_active"]?.state !== "on") logStay(arr, dep, "planned dates").catch(e => console.error("Stay log:", e.message));
+}
+const stayCost = new Map();
+async function stayList() {
+  await loadStays();
+  const out = [];
+  for (const x of stays) {
+    const key = `${x.arrival}-${x.departure}`, hit = stayCost.get(key);
+    let c = hit && (hit.final || Date.now() - hit.at < 30 * 60e3) ? hit : null;
+    if (!c) {
+      try {
+        const r = await haSend({ type: "recorder/statistics_during_period", start_time: new Date(x.arrival).toISOString(), end_time: new Date(x.departure).toISOString(),
+          statistic_ids: [ENERGY_STAT, COST_STAT], period: "hour", types: ["change"] });
+        const sum = id => (r[id] || []).reduce((a, row) => a + (row.change ?? 0), 0), n = (r[ENERGY_STAT] || []).length;
+        const hours = Math.round((x.departure - x.arrival) / 3600e3);
+        c = { kwh: n ? sum(ENERGY_STAT) : null, eur: (r[COST_STAT] || []).length ? sum(COST_STAT) : null, complete: n >= hours - 2, at: Date.now() };
+        c.final = c.complete && Date.now() - x.departure > 4 * 864e5;
+        stayCost.set(key, c);
+      } catch (e) { c = { kwh: null, eur: null, complete: false, error: e.message }; }
+    }
+    out.push({ ...x, nights: Math.round((new Date(x.departure).setHours(12) - new Date(x.arrival).setHours(12)) / 864e5), kwh: c.kwh, eur: c.eur, complete: c.complete });
+  }
+  return out;
+}
+
 const ROOM_STATS = Object.fromEntries(ROOMS.map(r => [r, `sensor.${r}_floor_heating_energy_total`]));
 const histCache = new Map();
 async function history(q) {
@@ -339,6 +390,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (url.pathname === "/api/costs") return json(res, 200, await costs());
+    if (url.pathname === "/api/stays") return json(res, 200, { stays: await stayList() });
     if (url.pathname === "/api/weather") return json(res, 200, await forecast());
     if (url.pathname === "/api/history") { try { return json(res, 200, await history(url.searchParams)); } catch (e) { return json(res, e.message === "Bad period" ? 400 : 502, { error: e.message }); } }
     // Profile pictures of the people (Mike, Irene, Oli), fetched with the token so the browser never needs it
