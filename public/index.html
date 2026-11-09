@@ -1360,7 +1360,7 @@ function renderSheet() {
     <div class="row" style="align-items:flex-end"><div class="big num">${typeof x.cur === "number" ? t1(x.cur) : "–"}<span style="font-size:.4em;color:var(--ink-3)">°C</span></div><div class="small muted" style="text-align:right">floor ${t1(num(E.floor(x.r)))}°<br>comfort ${t1(x.cf)}°</div></div>
     <div class="row"><div><b style="font-weight:500">Set to</b><p class="note">For now. Auto may change it with the next situation.</p></div>
       <div class="stepper"><button data-step="-0.5" aria-label="Cooler">−</button><output class="num">${t1(x.tgt ?? 0)}°</output><button data-step="0.5" aria-label="Warmer">+</button></div></div>
-    <dl class="kv"><dt>Thermostat</dt><dd>${{ MANUAL: "Manual", VACATION: "Lowered", PAUSE: "Paused", SCHEDULE: "Schedule", OVERRIDE: "Override" }[x.preset] || x.preset || "–"}</dd>
+    <dl class="kv"><dt>Thermostat</dt><dd>${{ MANUAL: "Manual", VACATION: "Lowered", PAUSE: "Frost-safe (lowered)", SCHEDULE: "Schedule", OVERRIDE: "Override" }[x.preset] || x.preset || "–"}</dd>
       <dt>Wi-Fi signal</dt><dd class="num" style="color:${num(E.wifi(x.r)) < -70 ? "var(--warn)" : "inherit"}">${num(E.wifi(x.r))} dBm${num(E.wifi(x.r)) < -70 ? " · weak" : ""}</dd>
       ${Number.isFinite(x.hum) ? `<dt>Humidity</dt><dd class="num">${Math.round(x.hum)} %</dd>` : ""}
       ${Number.isFinite(x.co2) ? `<dt>CO₂</dt><dd class="num" style="color:${x.co2 >= 1400 ? "var(--warn)" : "inherit"}">${Math.round(x.co2)} ppm${x.co2 >= 1400 ? " · open a window for a few minutes" : ""}</dd>` : ""}
