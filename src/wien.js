@@ -172,6 +172,24 @@ function renderHome() {
     `${meas.length ? ` Measuring now: ${meas.map(z => z.name.toLowerCase()).join(", ")}.` : ""}</p>`;
 }
 
+// what the house has learned (afterglow, heat loss), worked out once a day on the NAS
+let LEARN = null;
+async function loadLearn() {
+  const d = live ? await fetch("api/learn").then(r => r.ok ? r.json() : null).catch(() => null)
+    : { rooms: Object.fromEntries(slugs().map((s, i) => [s, { coast: [3.5, 2.5, 3, 4, null, null, 2][i % 7], loss: [.31, .42, .36, .28, .5, null, .47][i % 7], events: 6, samples: 40 }])), updated: Date.now() - 4 * 3600e3 };
+  if (d) { LEARN = d; renderLearn(); }
+}
+const hTxt = h => h == null ? "–" : (Number.isInteger(h * 2) ? (h >= 1 ? Math.floor(h) : "") + (h % 1 ? "½" : "") : h.toFixed(1)) + " h";
+function renderLearn() {
+  const el = $("#in-learn"); if (!el) return;
+  if (!LEARN) { el.innerHTML = `<p class="note">Loading…</p>`; return; }
+  const zs = zones().filter(z => LEARN.rooms?.[z.slug]);
+  el.innerHTML = zs.length ? `<div class="lr-h"><span></span><span>Afterglow</span><span>Heat loss</span></div>` + zs.map(z => { const x = LEARN.rooms[z.slug];
+      return `<div class="lr"><span>${z.name}</span><b class="num">${x.coast != null ? hTxt(x.coast) : "<em>learning</em>"}</b><b class="num">${x.loss != null ? `${x.loss.toFixed(2)}°<small>/h</small>` : "<em>learning</em>"}</b></div>`; }).join("") +
+    `<p class="note" style="margin-top:8px">Afterglow: how long a room stays within 0.5 °C once its heating turns down. Heat loss: how fast it cools at 10 °C colder outside, without heating; lower is better insulated. ${LEARN.updated ? `Updated ${fmtD(new Date(LEARN.updated))}.` : "First results after a day."}</p>`
+    : `<p class="note">${LEARN.error ? esc(LEARN.error) : "First results after a day of history."}</p>`;
+}
+
 // last 6 hours per room from the bridge history, for the trend lines
 let RECENT = null;
 async function loadRecent() {
@@ -397,6 +415,7 @@ function go(tab) {
   lsSet("tab", tab); window.scrollTo(0, 0); render();
   if (tab === "insights") { hxLoad(); rhLoad(); }
   if (tab === "rooms") loadRecent();
+  if (tab === "settings") loadLearn();
 }
 let hxRz; addEventListener("resize", () => { clearTimeout(hxRz); hxRz = setTimeout(() => { if (currentTab === "insights") hxRender(); }, 160); });
 

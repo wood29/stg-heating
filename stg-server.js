@@ -10,6 +10,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { startUpdater } from "./updater.js";
+import { onGrid, coastEvents, lossSamples, summarise, merge, wallDamp, STEP } from "./learn.js";
 
 const HA_URL = (process.env.HA_URL || "").replace(/\/+$/, "");
 const HA_TOKEN = process.env.HA_TOKEN || "";
@@ -70,7 +71,7 @@ function allowed(domain, service, data) {
       if (["input_datetime.stg_night_start", "input_datetime.stg_night_end"].includes(id)) return /^\d{2}:\d{2}:00$/.test(data.time) && keys === "entity_id,time";
       return ["input_datetime.stg_arrival", "input_datetime.stg_departure"].includes(id) && DT.test(data.datetime) && keys === "datetime,entity_id";
     case "input_boolean.turn_on": case "input_boolean.turn_off":
-      return (["input_boolean.stg_arrival_planned", "input_boolean.stg_night_enabled", "input_boolean.stg_co2_alert", "input_boolean.stg_bench_plan"].includes(id) || /^input_boolean\.stg_co2_push_[a-z0-9_]+$/.test(id)) && keys === "entity_id";
+      return (["input_boolean.stg_arrival_planned", "input_boolean.stg_night_enabled", "input_boolean.stg_co2_alert", "input_boolean.stg_bench_plan", "input_boolean.stg_mould_protection", "input_boolean.stg_learned_stop"].includes(id) || /^input_boolean\.stg_co2_push_[a-z0-9_]+$/.test(id)) && keys === "entity_id";
     case "input_number.set_value":
       if (id === "input_number.stg_bench_plan_temp") return num(data.value, 5, 40) && keys === "entity_id,value";
       if (id === "input_number.stg_co2_limit") return num(data.value, 800, 3000) && keys === "entity_id,value";
@@ -140,12 +141,13 @@ function connect() {
         for (const k of Object.keys(states)) delete states[k];
         for (const s of list) if (relevant(s)) states[s.entity_id] = s;
         broadcast("snapshot", { connected, states });
-        enforceFixed(); ensureBenchTimer(); checkStayEnded();
+        enforceFixed(); ensureBenchTimer(); checkStayEnded(); ensureCare();
       }).catch(e => console.error(e.message));
     } else if (m.type === "event" && m.event?.event_type === "state_changed") {
       const { entity_id, new_state } = m.event.data;
       if (new_state && relevant(new_state)) {
         const was = states[entity_id]?.state; states[entity_id] = new_state; broadcast("state", new_state);
+        if (entity_id === STOP_LEARNED && was === "off" && new_state.state === "on") applyStop().catch(e => console.error("Learned stop:", e.message));
         if (entity_id === "binary_sensor.stg_stay_active" && was === "on" && new_state.state === "off") {
           // the stay just ended: log it from the planned arrival to now (or the planned departure, if earlier)
           const arr = tsOf("input_datetime.stg_arrival"), dep = tsOf("input_datetime.stg_departure");
@@ -266,6 +268,134 @@ function enforceFixed() {
   if (cur !== BENCH_WATTS) haSend({ type: "call_service", domain: "input_number", service: "set_value", service_data: { entity_id: "input_number.stg_bench_power", value: BENCH_WATTS } })
     .then(() => console.log(`Bench warmer power set to ${BENCH_WATTS} W`)).catch(e => console.error("Bench power:", e.message));
 }
+
+// ---------------------------------------------------------------- learning and protection (ideas from RoomMind)
+// Kept in data/learn.json:
+//   - per room: afterglow ("coast": hours a room stays within 0.5 °C after the target drops) and heat loss samples,
+//     learned from the thermostats' history once a day;
+//   - mould protection while away: when a wall gets damp (estimated wall humidity 80 % or more for 30 minutes),
+//     the away temperature goes up 2 °C (Home Assistant applies it straight away), and back once the walls
+//     are dry again (below 75 % for an hour). If someone changes the away temperature meanwhile, theirs wins.
+//   - learned stop before departure: "StG learned stop" on -> the stop-before-departure setting follows the
+//     flat's afterglow (median of the rooms, 0.5–4 h).
+const LEARN = path.join(path.dirname(PUBLIC), "data", "learn.json");
+const AIR = { kitchen: ["sensor.indoor_stg_temperature", "sensor.indoor_stg_humidity"], bathroom: ["sensor.indoor_stg_bedroom_temperature", "sensor.indoor_stg_bedroom_humidity"], bedroom: ["sensor.indoor_stg_bedroom_temperature_2", "sensor.indoor_stg_bedroom_humidity_2"] };
+const ROOM_NAME = { living_room: "living room", kitchen: "dining room", hall: "hall", bathroom: "bathroom", bedroom: "bedroom" };
+const OUT_T = "sensor.indoor_stg_outdoor_stg_temperature", AWAY_T = "input_number.stg_away_temperature", STOP_H = "input_number.stg_stop_heating_before_departure";
+const PROTECT = "input_boolean.stg_mould_protection", STOP_LEARNED = "input_boolean.stg_learned_stop";
+const PUSH = [["mhh17", "input_boolean.stg_co2_push_mhh17"], ["mike_m4", "input_boolean.stg_co2_push_mike_m4"]];
+let L = null;
+async function loadLearn() { if (L) return L; try { L = JSON.parse(await readFile(LEARN, "utf8")); } catch { L = {}; } L.rooms ||= {}; L.care ||= {}; return L; }
+const saveLearn = async () => { await mkdir(path.dirname(LEARN), { recursive: true }); await writeFile(LEARN, JSON.stringify(L)); };
+const fnum = id => { const v = parseFloat(states[id]?.state); return Number.isFinite(v) ? v : NaN; };
+const call = (domain, service, service_data) => haSend({ type: "call_service", domain, service, service_data });
+
+let careReady = false;
+async function ensureCare() {
+  await loadLearn();
+  for (const [id, name, icon] of [[PROTECT, "StG mould protection", "mdi:water-alert-outline"], [STOP_LEARNED, "StG learned stop", "mdi:school-outline"]]) {
+    if (states[id]) continue;
+    try { await haSend({ type: "input_boolean/create", name, icon }); console.log(`Created ${id}`);
+      setTimeout(() => call("input_boolean", "turn_on", { entity_id: id }).catch(() => {}), 3000); } catch (e) { console.error(`${id}:`, e.message); }
+  }
+  if (careReady) return; careReady = true;
+  setInterval(() => careTick().catch(e => console.error("Mould protection:", e.message)), 60e3);
+  setTimeout(() => learnRun().catch(e => console.error("Learning:", e.message)), 90e3);
+  setInterval(() => { const h = new Date().getHours(); if (h === 4 && Date.now() - (L.ran || 0) > 20 * 3600e3) learnRun().catch(e => console.error("Learning:", e.message)); }, 10 * 60e3);
+}
+
+function walls() {
+  const out = OUT_T in states ? fnum(OUT_T) : NaN;
+  return Object.entries(AIR).map(([r, [t, h]]) => ({ r, w: wallDamp(fnum(t), fnum(h), out) })).filter(x => x.w).sort((a, b) => b.w.rh - a.w.rh);
+}
+const isAway = () => { const m = states["input_select.stg_heating_mode"]?.state; return m === "Away" || (m === "Auto" && states["input_text.stg_heating_auto_state"]?.state === "Away"); };
+const quiet = () => { const d = new Date(), m = d.getHours() * 60 + d.getMinutes(); return m < 7 * 60 + 30 || m >= 22 * 60; };
+async function push(title, message, tag) {
+  for (const [dev, flag] of PUSH) if (states[flag]?.state === "on")
+    await call("notify", `mobile_app_${dev}`, { title, message, data: { tag, group: "stg-air", push: { "interruption-level": "passive" } } }).catch(e => console.error(`Push ${dev}:`, e.message));
+}
+async function careTick() {
+  if (!connected) return;
+  const c = L.care, now = Date.now(), w = walls(), top = w[0], on = states[PROTECT]?.state === "on", away = isAway(), cur = fnum(AWAY_T);
+  c.top = top ? { room: top.r, rh: Math.round(top.w.rh), at: now } : null;
+  const risky = w.filter(x => x.w.rh >= 80), dry = !w.length || w.every(x => x.w.rh < 75);
+  let changed = false;
+  if (c.raised) {
+    const back = async why => { if (Number.isFinite(c.base) && fnum(AWAY_T) === c.to) await call("input_number", "set_value", { entity_id: AWAY_T, value: c.base });
+      console.log(`Mould protection ended (${why}); away temperature back to ${c.base} °C`); Object.assign(c, { raised: false, since: null, okSince: null, ended: now, endedWhy: why }); };
+    if (Number.isFinite(cur) && cur !== c.to) { console.log(`Away temperature changed by hand to ${cur} °C; mould protection steps back`); Object.assign(c, { raised: false, since: null, okSince: null, ended: now, endedWhy: "changed by hand" }); changed = true; }
+    else if (!on) { await back("switched off"); changed = true; }
+    else if (!away) { await back("stay started"); changed = true; }
+    else if (dry) { c.okSince ||= now; changed = true; if (now - c.okSince >= 60 * 60e3) await back("walls dry again"); }
+    else if (c.okSince) { c.okSince = null; changed = true; }
+  } else if (on && away && risky.length && Number.isFinite(cur)) {
+    c.riskSince ||= now; changed = true;
+    if (now - c.riskSince >= 30 * 60e3) {
+      const to = Math.min(cur + 2, Math.max(cur, 12));
+      Object.assign(c, { raised: true, base: cur, to, since: now, okSince: null, riskSince: null, rooms: risky.map(x => x.r) });
+      await call("input_number", "set_value", { entity_id: AWAY_T, value: to });
+      console.log(`Mould protection: wall humidity ${Math.round(top.w.rh)} % in the ${ROOM_NAME[top.r]}; away temperature ${cur} -> ${to} °C`);
+      await push("St. Gilgen · damp walls", `The wall in the ${ROOM_NAME[top.r]} is about ${Math.round(top.w.rh)} % humid. The flat is now kept at ${to} °C instead of ${cur} °C until it's dry again.`, "stg-mould");
+    }
+  } else if (c.riskSince) { c.riskSince = null; changed = true; }
+  // during a stay: a gentle push when a wall stays damp, at most every 12 hours, never at night
+  if (!away && risky.length && on && !quiet()) {
+    c.stayRisk ||= now;
+    if (now - c.stayRisk >= 30 * 60e3 && now - (c.lastStayPush || 0) > 12 * 3600e3) {
+      c.lastStayPush = now;
+      await push("St. Gilgen · damp walls", `The wall in the ${ROOM_NAME[top.r]} is about ${Math.round(top.w.rh)} % humid. Air for a few minutes and keep the room warm.`, "stg-mould");
+    }
+    changed = true;
+  } else if (c.stayRisk) { c.stayRisk = null; changed = true; }
+  if (changed) await saveLearn().catch(() => {});
+}
+
+// once a day: the thermostats' history since the last run (at most 45 days back), in 3-day pieces
+async function learnRun() {
+  if (!connected) return;
+  await loadLearn();
+  const end = Math.floor(Date.now() / STEP) * STEP, start = Math.max(end - 45 * 864e5, (L.until || 0) - 2 * 864e5);
+  const outRows = await haSend({ type: "recorder/statistics_during_period", start_time: new Date(start - 864e5).toISOString(), end_time: new Date(end).toISOString(), statistic_ids: [OUT_T], period: "hour", types: ["mean"], units: { temperature: "°C" } });
+  const outPts = (outRows[OUT_T] || []).map(x => [x.start + 1800e3, x.mean]);
+  const pts = Object.fromEntries(ROOMS.map(r => [r, { T: [], G: [] }]));
+  for (let a = start - 864e5; a < end; a += 3 * 864e5) {
+    const b = Math.min(end, a + 3 * 864e5);
+    const h = await haSend({ type: "history/history_during_period", start_time: new Date(a).toISOString(), end_time: new Date(b).toISOString(), entity_ids: ROOMS.map(r => `climate.${r}_floor_heating`),
+      include_start_time_state: true, significant_changes_only: false, minimal_response: false, no_attributes: false });
+    for (const r of ROOMS) { let at = {};
+      for (const x of h?.[`climate.${r}_floor_heating`] || []) { at = x.a || at; const t = Math.round((x.lu ?? x.lc) * 1000); if (!Number.isFinite(t)) continue;
+        if (typeof at.current_temperature === "number") pts[r].T.push([t, at.current_temperature]);
+        if (typeof at.temperature === "number") pts[r].G.push([t, at.temperature]); } }
+  }
+  const O = onGrid(outPts, start, end, 3 * 3600e3);
+  for (const r of ROOMS) {
+    const T = onGrid(pts[r].T, start, end, 6 * 3600e3), G = onGrid(pts[r].G, start, end, 30 * 864e5);
+    const k = (L.rooms[r] ||= { ev: [], ls: [] });
+    k.ev = merge(k.ev, coastEvents(T, G, start)); k.ls = merge(k.ls, lossSamples(T, G, O, start));
+  }
+  L.until = end; L.ran = Date.now();
+  await saveLearn();
+  const S = learnSummary();
+  console.log(`Learning: ${ROOMS.map(r => `${r} coast ${S.rooms[r].coast ?? "–"} h (${S.rooms[r].events}), loss ${S.rooms[r].loss ?? "–"} °C/h (${S.rooms[r].samples})`).join("; ")}`);
+  await applyStop().catch(e => console.error("Learned stop:", e.message));
+}
+function learnSummary() {
+  const rooms = Object.fromEntries(ROOMS.map(r => [r, summarise(L?.rooms?.[r]?.ev || [], L?.rooms?.[r]?.ls || [])]));
+  const cs = ROOMS.map(r => rooms[r].coast).filter(v => v != null).sort((a, b) => a - b), n = ROOMS.reduce((a, r) => a + rooms[r].events, 0);
+  const coast = cs.length >= 2 ? cs[cs.length >> 1] : null;
+  return { rooms, flat: { coast, events: n, stop: coast != null && n >= 3 ? Math.min(4, Math.max(.5, Math.floor(coast * 2) / 2)) : null } };
+}
+async function applyStop() {
+  if (states[STOP_LEARNED]?.state !== "on") return;
+  const want = learnSummary().flat.stop; if (want == null) return;
+  if (fnum(STOP_H) !== want) { await call("input_number", "set_value", { entity_id: STOP_H, value: want }); console.log(`Learned stop: heating stops ${want} h before departure`); }
+}
+async function learnInfo() {
+  await loadLearn();
+  const c = L.care || {};
+  return { ...learnSummary(), updated: L.ran || null, care: { raised: !!c.raised, base: c.base ?? null, to: c.to ?? null, since: c.since ?? null, rooms: c.rooms || [], ended: c.ended ?? null, endedWhy: c.endedWhy ?? null, top: c.top || null } };
+}
+
 // ---------------------------------------------------------------- stay log
 // Every finished stay is kept in data/stays.json: arrival, departure and nights. Electricity use and cost come
 // from the smart meter (long-term statistics) for that period, worked out when the log is opened, so they fill
@@ -427,6 +557,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/costs") return json(res, 200, await costs());
     if (url.pathname === "/api/stays") return json(res, 200, { stays: await stayList() });
     if (url.pathname === "/api/weather") return json(res, 200, await forecast());
+    if (url.pathname === "/api/learn") return json(res, 200, await learnInfo());
     if (url.pathname === "/api/recent") { try { return json(res, 200, await recent()); } catch (e) { return json(res, 502, { error: e.message }); } }
     if (url.pathname === "/api/history") { try { return json(res, 200, await history(url.searchParams)); } catch (e) { return json(res, e.message === "Bad period" ? 400 : 502, { error: e.message }); } }
     // Profile pictures of the people (Mike, Irene, Oli), fetched with the token so the browser never needs it

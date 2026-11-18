@@ -740,6 +740,11 @@ dialog.sheet .in{padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));g
 .rh-key{display:flex;align-items:center;gap:4px;justify-content:flex-end;margin-top:8px;font-size:11px;color:var(--ink-3)}
 .rh-key i{display:block;width:12px;height:12px;border-radius:3px;background:color-mix(in srgb,var(--c-activity) var(--a),var(--chip))}
 .rh-key span{margin:0 2px}
+/* what the floors have learned (Settings → Diagnostics) */
+.lr-h,.lr{display:grid;grid-template-columns:minmax(0,1fr) 84px 84px;gap:8px;align-items:baseline}
+.lr-h span{font-size:11.5px;color:var(--ink-3);text-align:right}
+.lr{padding:6px 0;border-top:1px solid var(--line);font-size:13.5px}
+.lr b{text-align:right;font-weight:600}.lr b small{font-size:11px;font-weight:400;color:var(--ink-3)}.lr b em{font-style:normal;font-weight:400;font-size:12px;color:var(--ink-3)}
 </style>
 
 <div class="shell">
@@ -820,7 +825,7 @@ dialog.sheet .in{padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));g
         <div class="card" id="settings"></div>
         <div class="stack">
           <div class="card"><div class="setting" style="display:block;border-top:0;padding-top:2px"><div style="margin-bottom:12px"><b>Appearance</b><p>Auto follows this device's light or dark setting.</p></div><div class="seg seg3" role="group" aria-label="Appearance" id="theme-seg"></div></div></div>
-          <div class="card" id="diag"><div class="card-h"><h2>Diagnostics</h2></div><div class="setting" style="display:block"><b style="display:block;margin-bottom:6px">Warm-up speed <span class="small muted" style="font-weight:500">min per °C</span></b><div id="ebars"></div><p class="note" id="wu-note" style="margin-top:6px"></p></div><div class="setting" style="display:block"><b style="display:block;margin-bottom:8px">Rooms</b><dl class="kv" id="health"></dl></div></div>
+          <div class="card" id="diag"><div class="card-h"><h2>Diagnostics</h2></div><div class="setting" style="display:block"><b style="display:block;margin-bottom:6px">Warm-up speed <span class="small muted" style="font-weight:500">min per °C</span></b><div id="ebars"></div><p class="note" id="wu-note" style="margin-top:6px"></p></div><div class="setting" style="display:block"><b style="display:block;margin-bottom:6px">What the house has learned</b><div id="in-learn"></div></div><div class="setting" style="display:block"><b style="display:block;margin-bottom:8px">Rooms</b><dl class="kv" id="health"></dl></div></div>
           <div class="card" id="setup-card"><div class="card-h"><h2>Connection setup</h2></div>
             <p class="note" id="setup-note">Typed once here and kept only on the NAS; never shown again.</p>
             <form id="setup-form" autocomplete="off">
@@ -1164,6 +1169,24 @@ function renderHome() {
     `${meas.length ? ` Measuring now: ${meas.map(z => z.name.toLowerCase()).join(", ")}.` : ""}</p>`;
 }
 
+// what the house has learned (afterglow, heat loss), worked out once a day on the NAS
+let LEARN = null;
+async function loadLearn() {
+  const d = live ? await fetch("api/learn").then(r => r.ok ? r.json() : null).catch(() => null)
+    : { rooms: Object.fromEntries(slugs().map((s, i) => [s, { coast: [3.5, 2.5, 3, 4, null, null, 2][i % 7], loss: [.31, .42, .36, .28, .5, null, .47][i % 7], events: 6, samples: 40 }])), updated: Date.now() - 4 * 3600e3 };
+  if (d) { LEARN = d; renderLearn(); }
+}
+const hTxt = h => h == null ? "–" : (Number.isInteger(h * 2) ? (h >= 1 ? Math.floor(h) : "") + (h % 1 ? "½" : "") : h.toFixed(1)) + " h";
+function renderLearn() {
+  const el = $("#in-learn"); if (!el) return;
+  if (!LEARN) { el.innerHTML = `<p class="note">Loading…</p>`; return; }
+  const zs = zones().filter(z => LEARN.rooms?.[z.slug]);
+  el.innerHTML = zs.length ? `<div class="lr-h"><span></span><span>Afterglow</span><span>Heat loss</span></div>` + zs.map(z => { const x = LEARN.rooms[z.slug];
+      return `<div class="lr"><span>${z.name}</span><b class="num">${x.coast != null ? hTxt(x.coast) : "<em>learning</em>"}</b><b class="num">${x.loss != null ? `${x.loss.toFixed(2)}°<small>/h</small>` : "<em>learning</em>"}</b></div>`; }).join("") +
+    `<p class="note" style="margin-top:8px">Afterglow: how long a room stays within 0.5 °C once its heating turns down. Heat loss: how fast it cools at 10 °C colder outside, without heating; lower is better insulated. ${LEARN.updated ? `Updated ${fmtD(new Date(LEARN.updated))}.` : "First results after a day."}</p>`
+    : `<p class="note">${LEARN.error ? esc(LEARN.error) : "First results after a day of history."}</p>`;
+}
+
 // last 6 hours per room from the bridge history, for the trend lines
 let RECENT = null;
 async function loadRecent() {
@@ -1389,6 +1412,7 @@ function go(tab) {
   lsSet("tab", tab); window.scrollTo(0, 0); render();
   if (tab === "insights") { hxLoad(); rhLoad(); }
   if (tab === "rooms") loadRecent();
+  if (tab === "settings") loadLearn();
 }
 let hxRz; addEventListener("resize", () => { clearTimeout(hxRz); hxRz = setTimeout(() => { if (currentTab === "insights") hxRender(); }, 160); });
 

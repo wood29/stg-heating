@@ -740,6 +740,11 @@ dialog.sheet .in{padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));g
 .rh-key{display:flex;align-items:center;gap:4px;justify-content:flex-end;margin-top:8px;font-size:11px;color:var(--ink-3)}
 .rh-key i{display:block;width:12px;height:12px;border-radius:3px;background:color-mix(in srgb,var(--c-activity) var(--a),var(--chip))}
 .rh-key span{margin:0 2px}
+/* what the floors have learned (Settings → Diagnostics) */
+.lr-h,.lr{display:grid;grid-template-columns:minmax(0,1fr) 84px 84px;gap:8px;align-items:baseline}
+.lr-h span{font-size:11.5px;color:var(--ink-3);text-align:right}
+.lr{padding:6px 0;border-top:1px solid var(--line);font-size:13.5px}
+.lr b{text-align:right;font-weight:600}.lr b small{font-size:11px;font-weight:400;color:var(--ink-3)}.lr b em{font-style:normal;font-weight:400;font-size:12px;color:var(--ink-3)}
 </style>
 
 <div class="shell">
@@ -876,7 +881,7 @@ dialog.sheet .in{padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));g
           <div class="card"><div class="card-h"><h2>Fresh air</h2></div><div id="co2set"></div></div>
           <div class="card"><div class="setting" style="display:block"><div style="margin-bottom:12px"><b>Appearance</b><p>Auto follows this device's light or dark setting.</p></div><div class="seg seg3" role="group" aria-label="Appearance" id="theme-seg"></div></div></div>
           <div class="card"><div class="setting"><div><b>Open-window detection</b><p>A thermostat pauses when the room cools quickly, e.g. while airing.</p></div><label class="switch"><input type="checkbox" id="set-window" aria-label="Open-window detection"><span></span></label></div></div>
-          <div class="card"><div class="card-h"><h2>Diagnostics</h2></div><div class="setting" style="display:block"><b>Heating curve</b><p id="in-curve"></p></div><div class="setting" style="display:block"><b style="display:block;margin-bottom:8px">Thermostats</b><dl class="kv" id="health"></dl><p class="note" id="health-note" style="margin-top:8px"></p></div></div>
+          <div class="card"><div class="card-h"><h2>Diagnostics</h2></div><div class="setting" style="display:block"><b>Heating curve</b><p id="in-curve"></p></div><div class="setting" style="display:block"><b style="display:block;margin-bottom:6px">What the floors have learned</b><div id="in-learn"></div></div><div class="setting" style="display:block"><b style="display:block;margin-bottom:8px">Thermostats</b><dl class="kv" id="health"></dl><p class="note" id="health-note" style="margin-top:8px"></p></div></div>
         </div>
       </div>
     </section>
@@ -1197,6 +1202,7 @@ const E = {
   airT: { kitchen: "sensor.indoor_stg_temperature", bathroom: "sensor.indoor_stg_bedroom_temperature", bedroom: "sensor.indoor_stg_bedroom_temperature_2" },
   bench: "climate.bench_warmer", benchOn: "binary_sensor.stg_bench_heating", bSw: "input_boolean.stg_bench_switch",
   bPlan: "input_boolean.stg_bench_plan", bOnAt: "input_datetime.stg_bench_on", bOffAt: "input_datetime.stg_bench_off", bTemp: "input_number.stg_bench_plan_temp", bRep: "input_select.stg_bench_repeat", benchW: "input_number.stg_bench_power", benchE: "sensor.stg_bench_energy",
+  protect: "input_boolean.stg_mould_protection", stopLearned: "input_boolean.stg_learned_stop",
   co2On: "input_boolean.stg_co2_alert", co2Limit: "input_number.stg_co2_limit",
   pushDev: [["mhh17", "Mike's iPhone", "iPhone 17"], ["mike_m4", "Mike's iPad", "iPad Pro M4"]],
   nStart: "input_datetime.stg_night_start", nEnd: "input_datetime.stg_night_end", wakeStart: "sensor.stg_morning_warm_up_start",
@@ -1226,6 +1232,7 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
   S(E.air.kitchen[0], 61); S(E.air.kitchen[1], 1480); S(E.air.bathroom[0], 58); S(E.air.bathroom[1], 820); S(E.air.bedroom[0], 52); S(E.air.bedroom[1], 760); S(E.outT, 8.4); S(E.airT.kitchen, 20.4); S(E.airT.bathroom, 20.6); S(E.airT.bedroom, 18.4);
   S(E.bench, "heat", { current_temperature: 21.5, temperature: 24, hvac_modes: ["off", "heat"], min_temp: 5, max_temp: 40 }); S(E.benchOn, "on"); S(E.bSw, "on"); S(E.benchW, 520); S(E.benchE, 3.2);
   { const a = new Date(); a.setDate(a.getDate() + 1); a.setHours(7, 0, 0, 0); const o = new Date(a); o.setHours(8); S(E.bPlan, "on"); S(E.bOnAt, haDT(a)); S(E.bOffAt, haDT(o)); S(E.bTemp, 25); S(E.bRep, "Once"); }
+  S(E.protect, "on"); S(E.stopLearned, "on");
   S(E.co2On, "on"); S(E.co2Limit, 1400); for (const [d] of E.pushDev) S(`input_boolean.stg_co2_push_${d}`, "on");
   S(E.nightOn, "off"); S(E.nightEn, "on"); S(E.warming, "off"); S(E.nStart, "22:00:00"); S(E.nEnd, "08:00:00"); S(E.wakeStart, at(1, 5, 10).toISOString());
   S(E.price, "0.4176", { supplier: "Salzburg AG", valid_from: "2026-09-01" });
@@ -1238,6 +1245,20 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
     S(`switch.demo_window_${r}`, "on", { friendly_name: `${n} Floor Heating Switch Window detection` });
   }
 })();
+
+/* ---------- what the heating has learned: afterglow, heat loss, mould protection ---------- */
+let LEARN = null;
+function demoLearn() {
+  const r = (coast, rise, events, loss, samples) => ({ coast, rise, events, loss, tau: loss ? Math.round(10 / loss) : null, samples });
+  return { rooms: { living_room: r(3.5, .3, 9, .32, 60), kitchen: r(3, .2, 8, .41, 55), hall: r(2.5, .2, 8, .38, 58), bathroom: r(4, .4, 7, .29, 49), bedroom: r(2.75, .1, 3, .45, 40) },
+    flat: { coast: 3, events: 35, stop: 3 }, updated: Date.now() - 5 * 3600e3, care: { raised: false, base: null, to: null, since: null, rooms: [], top: { room: "kitchen", rh: 71 } } };
+}
+async function loadLearn() {
+  const d = live ? await fetch("api/learn").then(r => r.ok ? r.json() : null).catch(() => null) : demoLearn();
+  if (d) { LEARN = d; renderSettings(); renderHome(); }
+}
+setInterval(() => { if (live) loadLearn(); }, 10 * 60e3);
+const hTxt = h => h == null ? "–" : (Number.isInteger(h * 2) ? (h >= 1 ? Math.floor(h) : "") + (h % 1 ? "½" : "") : h.toFixed(1)) + " h";
 
 /* ---------- last 6 hours per room, for the trend lines ---------- */
 let RECENT = null;
@@ -1303,6 +1324,7 @@ async function goLive() {
   es.onerror = () => { haUp = false; soon(); };
   const costs = () => fetch("api/costs").then(r => r.ok ? r.json() : null).then(d => { if (d) { costData = d; renderInsights(); renderHome(); } }).catch(() => {});
   costs(); setInterval(costs, 15 * 60e3);
+  setTimeout(loadLearn, 1500);
   const weather = () => fetch("api/weather").then(r => r.ok ? r.json() : null).then(d => { if (d) { wx = d; renderWeather(); } }).catch(() => {});
   weather(); setInterval(weather, 20 * 60e3);
 }
@@ -1528,7 +1550,10 @@ function renderHome() {
   const stuffy = ROOMS.map(([r]) => room(r)).filter(x => Number.isFinite(x.co2) && x.co2 >= co2Limit());
   const damp = ROOMS.map(([r]) => room(r)).filter(x => x.dampLvl === "risk" || x.dampLvl === "watch").sort((a, b) => b.damp.rh - a.damp.rh);
   const an = $("#h-air"); an.hidden = !stuffy.length && !damp.length; an.classList.toggle("risk", !stuffy.length && damp[0]?.dampLvl === "risk");
-  if (!stuffy.length && damp.length) { const w = damp[0], away = st(E.stay) !== "on";
+  const guard = LEARN?.care?.raised ? LEARN.care : null;
+  if (!stuffy.length && guard) { an.hidden = false; an.classList.remove("risk");
+    an.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Mould protection is on</b><br><em>Kept at ${t1(guard.to)} °C instead of ${t1(guard.base)} °C until the walls are dry${guard.since ? ` · since ${fmtD(new Date(guard.since))}` : ""}</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>`; }
+  else if (!stuffy.length && damp.length) { const w = damp[0], away = st(E.stay) !== "on";
     an.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/></svg><span><b>${w.dampLvl === "risk" ? "Mould risk" : "Damp walls"} in the ${damp.map(x => x.name.toLowerCase()).join(" and ")}</b><br><em>Wall about ${Math.round(w.damp.rh)}% humid · ${away ? "a warmer away temperature helps" : "air briefly and keep it warm"}</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>`; }
   if (stuffy.length) { const names = stuffy.map(x => x.name.toLowerCase()), list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names.at(-1) : names[0];
     an.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/></svg><span><b>Time to air the ${list}</b><br><em>CO₂ ${stuffy.map(x => Math.round(x.co2).toLocaleString("en-GB")).join(" · ")} ppm · a few minutes with the window open</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>`; }
@@ -1652,6 +1677,10 @@ function renderInsights() {
   const comfort = ROOMS.reduce((a, [r]) => a + num(E.comfort(r), 20), 0) / ROOMS.length;
   const last = st(E.last);
   $("#in-curve").textContent = `The flat warms up by about ${rate.toFixed(2)} °C an hour. Each warm-up from a lowered temperature is measured and blended in, and the planner starts heating that much earlier, plus ${margin} h to be safe. ${last && last !== "unknown" ? "Last measurement: " + last + "." : "No warm-up measured yet."}`;
+  const lr = LEARN?.rooms;
+  $("#in-learn").innerHTML = lr ? `<div class="lr-h"><span></span><span>Afterglow</span><span>Heat loss</span></div>` + ROOMS.map(([r, n]) => { const x = lr[r] || {};
+      return `<div class="lr"><span>${n}</span><b class="num">${x.coast != null ? hTxt(x.coast) : "<em>learning</em>"}</b><b class="num">${x.loss != null ? `${x.loss.toFixed(2)}°<small>/h</small>` : "<em>learning</em>"}</b></div>`; }).join("") +
+    `<p class="note" style="margin-top:8px">Afterglow: how long a room stays within 0.5 °C once its heating turns down. Heat loss: how fast it cools at 10 °C colder outside, without heating; lower is better insulated. ${LEARN.updated ? `Updated ${fmtD(new Date(LEARN.updated))}.` : "First results after a day."}</p>` : `<p class="note">Loading…</p>`;
   $("#health").innerHTML = ROOMS.map(([r, n]) => { const x = room(r), w = num(E.wifi(r)); return `<dt>${n}</dt><dd style="color:${!x.online ? "var(--bad)" : w < -70 ? "var(--warn)" : "var(--ok)"}">${x.online ? "Online" : "Offline"} · <span class="num">${w} dBm</span></dd>`; }).join("");
   const weak = ROOMS.filter(([r]) => num(E.wifi(r)) < -70).map(x => x[1]);
   $("#health-note").textContent = weak.length ? `${weak.join(", ")}: weak Wi-Fi. An eero closer to it would stop the dropouts.` : "All thermostats have good Wi-Fi.";
@@ -1668,7 +1697,14 @@ const SETTINGS = [
 function windowSwitches() { return Object.values(states).filter(s => s.entity_id.startsWith("switch.") && / Floor Heating Switch Window detection$/.test(s.attributes?.friendly_name || "")); }
 function renderSettings() {
   if (document.activeElement?.closest?.("#settings,#comfort,#night,#co2set")) return;
-  $("#settings").innerHTML = SETTINGS.map(([id, l, d, mi, ma, s, u], i) => `<div class="setting"><div><b>${l}</b><p>${d}</p></div><output class="num" id="o${i}">${num(id)} ${u}</output><input type="range" id="s${i}" aria-label="${l}" min="${mi}" max="${ma}" step="${s}" value="${num(id)}" data-set="${i}"></div>`).join("") +
+  const learnedStop = st(E.stopLearned) === "on", care = LEARN?.care;
+  $("#settings").innerHTML = SETTINGS.map(([id, l, d, mi, ma, s, u], i) => {
+    if (id === E.stopBefore && learnedStop) d = `Learned from the floors: they keep the rooms warm about ${hTxt(LEARN?.flat?.coast)} after heating stops.`;
+    if (id === E.away && care?.raised) d = `Raised to ${t1(care.to)} °C by mould protection until the walls are dry (yours: ${t1(care.base)} °C).`;
+    const lock = id === E.stopBefore && learnedStop;
+    return `<div class="setting"><div><b>${l}</b><p>${d}</p></div><output class="num" id="o${i}">${num(id)} ${u}</output><input type="range" id="s${i}" aria-label="${l}" min="${mi}" max="${ma}" step="${s}" value="${num(id)}" data-set="${i}" ${lock ? "disabled" : ""}></div>`; }).join("") +
+    `<div class="setting"><div><b>Learned stop time</b><p>Stop before departure follows how long the floors keep the flat warm.</p></div><label class="switch"><input type="checkbox" id="stop-learned" aria-label="Learned stop time" ${learnedStop ? "checked" : ""}><span></span></label></div>` +
+    `<div class="setting"><div><b>Mould protection</b><p>While you're away: if a wall gets damp (above 80 %), the flat is kept 2 °C warmer until it's dry, with a push to the CO₂ alert devices.${care?.top ? ` Now: walls up to ${care.top.rh} % (${RN[care.top.room]?.toLowerCase() || ""}).` : ""}</p></div><label class="switch"><input type="checkbox" id="protect" aria-label="Mould protection" ${st(E.protect) !== "off" ? "checked" : ""}><span></span></label></div>` +
     `<div class="setting"><div><b>Electricity price</b><p>From your income and expense app.</p></div><output class="num">${price() ? price().toFixed(4) : "–"} €/kWh</output></div>`;
   const stp = (r, n, kind, v) => `<div class="stepper sm"><button aria-label="${n} ${kind} cooler" data-${kind === "day" ? "comfort" : "night"}="-0.5" data-room="${r}">−</button><output class="num">${t1(v)}°</output><button aria-label="${n} ${kind} warmer" data-${kind === "day" ? "comfort" : "night"}="0.5" data-room="${r}">+</button></div>`;
   $("#comfort").innerHTML = `<div class="dn-head"><span></span><span>Day</span><span>Night</span></div>` + ROOMS.map(([r, n]) => `<div class="dn"><div><b>${n}</b><p>Warms ${t1(num(E.rateR(r), .5))} °C/h</p></div>${stp(r, n, "day", num(E.comfort(r)))}${stp(r, n, "night", num(E.night(r), 18))}</div>`).join("");
@@ -1835,6 +1871,7 @@ function go(tab) {
   lsSet("tab", tab); window.scrollTo(0, 0); render();
   if (tab === "insights") { hxLoad(); rhLoad(); }
   if (tab === "rooms") loadRecent();
+  if (tab === "settings" || tab === "home") loadLearn();
   if (tab === "stay") loadStays();
   if (tab === "bench") { BX.data = null; BT.dirty = false; renderBench(); }
 }
@@ -1903,6 +1940,8 @@ document.addEventListener("change", async e => {
   if (el.id === "st-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.planned }); toast(el.checked ? "Stay planned" : "Stay switched off"); }
   if (el.id === "bt-on") { if (el.checked) { el.checked = false; return $("#bt-save").click(); } await call("input_boolean", "turn_off", { entity_id: E.bPlan }); BT.dirty = false; el.blur(); renderBench(); return toast("Timer off"); }
   if (el.id === "bt-start" || el.id === "bt-end") BT.dirty = true;
+  if (el.id === "protect") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.protect }); toast(el.checked ? "Mould protection on" : "Mould protection off"); }
+  if (el.id === "stop-learned") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.stopLearned }); toast(el.checked ? "Stop time follows the floors" : "Stop time: your setting"); }
   if (el.id === "co2-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.co2On }); toast(el.checked ? "CO₂ alert on" : "CO₂ alert off"); }
   if (el.dataset.push) { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: `input_boolean.stg_co2_push_${el.dataset.push}` }); toast(`${el.checked ? "Pushes" : "No pushes"} to ${E.pushDev.find(x => x[0] === el.dataset.push)[1]}`); }
   if (el.id === "n-en") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.nightEn }); toast(el.checked ? "Night temperatures on" : "Night temperatures off"); }

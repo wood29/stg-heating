@@ -17,6 +17,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { startUpdater } from "./updater.js";
+import { onGrid, coastEvents, lossSamples, summarise, merge } from "./learn.js";
 
 const BRIDGE = (process.env.BRIDGE_URL || "http://192.168.178.149:8098").replace(/\/+$/, "");
 let PASSWORD = process.env.BRIDGE_PASSWORD || "";
@@ -207,6 +208,53 @@ function energyHours(days) {
 }
 const energyOn = () => !!(HA_URL && HA_TOKEN);
 
+// ---------------------------------------------------------------- what the house has learned (ideas from RoomMind)
+// Once a day, from the bridge's temperature history (45 days) and the Tempest outside temperature:
+// per room the afterglow (hours it stays within 0.5 °C once its target drops) and the heat loss
+// (°C an hour at 10 °C colder outside, without heating). Read-only: nothing here changes the heating.
+// Kept in data/learn.json so it grows beyond the bridge's own history.
+const LEARN = path.join(path.dirname(PUBLIC), "data", "learn.json");
+let L = null, learnErr = "";
+async function outsideHistory(from, to) {
+  const pts = [];
+  if (energyOn()) {
+    for (let a = from; a < to; a += 5 * 864e5) {
+      const b = Math.min(to, a + 5 * 864e5);
+      const h = await ha(`/api/history/period/${new Date(a).toISOString()}?end_time=${encodeURIComponent(new Date(b).toISOString())}&filter_entity_id=${OUTSIDE}&minimal_response&no_attributes`).catch(() => null);
+      let lastT = 0;
+      for (const st of h?.[0] || []) { const v = Number(st.state), t = Date.parse(st.last_changed || st.last_updated); if (Number.isFinite(v) && Number.isFinite(t) && t - lastT >= 10 * 60e3) { pts.push([t, v]); lastT = t; } }
+    }
+  }
+  if (pts.length < 48) {   // no Tempest history: the weather service's hourly archive
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m&past_days=${Math.min(92, Math.ceil((to - from) / 864e5) + 1)}&forecast_days=1&timezone=UTC`, { signal: AbortSignal.timeout(20000) });
+    const j = r.ok ? await r.json() : null;
+    (j?.hourly?.time || []).forEach((t, i) => { const v = j.hourly.temperature_2m[i]; if (typeof v === "number") pts.push([Date.parse(t + "Z"), v]); });
+  }
+  return pts;
+}
+async function learnRun() {
+  try {
+    if (!L) { try { L = JSON.parse(await readFile(LEARN, "utf8")); } catch { L = {}; } L.rooms ||= {}; }
+    const d = await bridge("history/45");
+    if (!d?.t?.length) throw new Error("no history from the bridge");
+    const from = Math.ceil(d.t[0] * 1000 / 900e3) * 900e3, to = Math.floor(Date.now() / 900e3) * 900e3;
+    const O = onGrid(await outsideHistory(from - 864e5, to), from, to, 3 * 3600e3);
+    for (const [slug, z] of Object.entries(d.zones || {})) {
+      const T = onGrid(d.t.map((t, j) => [t * 1000, z.temp?.[j]]), from, to, 2 * 3600e3), G = onGrid(d.t.map((t, j) => [t * 1000, z.target?.[j]]), from, to, 2 * 3600e3);
+      const k = (L.rooms[slug] ||= { ev: [], ls: [] });
+      k.ev = merge(k.ev, coastEvents(T, G, from)); k.ls = merge(k.ls, lossSamples(T, G, O, from));
+    }
+    L.ran = Date.now();
+    await mkdir(path.dirname(LEARN), { recursive: true }); await writeFile(LEARN, JSON.stringify(L));
+    console.log(`Learning: ${Object.entries(L.rooms).map(([s, k]) => { const x = summarise(k.ev, k.ls); return `${s} coast ${x.coast ?? "–"} h, loss ${x.loss ?? "–"} °C/h`; }).join("; ")}`);
+    learnErr = "";
+  } catch (e) { if (e.message !== learnErr) console.error(`Learning: ${e.message}`); learnErr = e.message; }
+}
+async function learnInfo() {
+  if (!L) { try { L = JSON.parse(await readFile(LEARN, "utf8")); } catch { L = { rooms: {} }; } }
+  return { rooms: Object.fromEntries(Object.entries(L.rooms || {}).map(([s, k]) => [s, summarise(k.ev || [], k.ls || [])])), updated: L.ran || null, error: learnErr || null };
+}
+
 const every = (what, ms) => { poll(what); setInterval(() => poll(what), ms); };
 async function loadSecrets() {
   try {
@@ -233,6 +281,8 @@ async function start() {
   try { store = { ...store, ...JSON.parse(await readFile(STORE, "utf8")) }; } catch { }
   energySync(); setInterval(energySync, 15 * 60e3);
   setInterval(() => poll("house"), 3600e3);
+  setTimeout(learnRun, 2 * 60e3);
+  setInterval(() => { if (new Date().getHours() === 4 && Date.now() - (L?.ran || 0) > 20 * 3600e3) learnRun(); }, 10 * 60e3);
 }
 
 // ---------------------------------------------------------------- controls (checked before passing on)
@@ -280,6 +330,7 @@ const server = http.createServer(async (req, res) => {
       clients.add(res); req.on("close", () => clients.delete(res));
       return;
     }
+    if (url.pathname === "/api/learn") return json(res, 200, await learnInfo());
     if (url.pathname === "/api/energy") {
       const d = Number(url.searchParams.get("days"));
       if (!isNum(d, 0.25, 400)) return json(res, 400, { error: "Bad period" });
