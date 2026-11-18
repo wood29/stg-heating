@@ -351,6 +351,30 @@ async function history(q) {
 }
 
 // Weather forecast (met.no via Home Assistant): daily and hourly, cached for 20 minutes.
+// Last hours per room for the little trend lines on the Rooms page: room temperature and the thermostat's target,
+// straight from the climate entities' history (the long-term statistics don't keep the target).
+let recentCache = null;
+async function recent() {
+  if (recentCache && Date.now() - recentCache.at < 3 * 60e3) return recentCache.data;
+  const end = new Date(), start = new Date(end - 6.5 * 3600e3), ids = ROOMS.map(r => `climate.${r}_floor_heating`);
+  const h = await haSend({ type: "history/history_during_period", start_time: start.toISOString(), end_time: end.toISOString(), entity_ids: ids,
+    include_start_time_state: true, significant_changes_only: false, minimal_response: false, no_attributes: false });
+  const rooms = {};
+  for (const r of ROOMS) {
+    const rows = h?.[`climate.${r}_floor_heating`] || [], temp = [], target = [];
+    let a = {};
+    for (const x of rows) {
+      a = x.a ? x.a : a; const t = Math.round((x.lu ?? x.lc) * 1000); if (!Number.isFinite(t)) continue;
+      if (typeof a.current_temperature === "number" && temp.at(-1)?.[1] !== a.current_temperature) temp.push([t, a.current_temperature]);
+      if (typeof a.temperature === "number" && target.at(-1)?.[1] !== a.temperature) target.push([t, a.temperature]);
+    }
+    rooms[r] = { temp, target };
+  }
+  const data = { rooms };
+  recentCache = { at: Date.now(), data };
+  return data;
+}
+
 const WEATHER = process.env.WEATHER_ENTITY || "weather.forecast_home";
 let wxCache = null, wxAt = 0;
 async function forecast() {
@@ -403,6 +427,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/costs") return json(res, 200, await costs());
     if (url.pathname === "/api/stays") return json(res, 200, { stays: await stayList() });
     if (url.pathname === "/api/weather") return json(res, 200, await forecast());
+    if (url.pathname === "/api/recent") { try { return json(res, 200, await recent()); } catch (e) { return json(res, 502, { error: e.message }); } }
     if (url.pathname === "/api/history") { try { return json(res, 200, await history(url.searchParams)); } catch (e) { return json(res, e.message === "Bad period" ? 400 : 502, { error: e.message }); } }
     // Profile pictures of the people (Mike, Irene, Oli), fetched with the token so the browser never needs it
     const pic = url.pathname.match(/^\/api\/picture\/(person\.[a-z0-9_]+)$/);

@@ -102,8 +102,9 @@
         <div class="legend"><span><i style="background:var(--c-activity)"></i>kWh</span><span><i class="est-key"></i>estimated cost basis</span><span><i style="background:var(--s-out)"></i>Outside °C</span></div></div>
       <div class="g-two">
         <div class="card hx-card"><div class="card-h"><h2>Temperatures</h2><span class="small muted">dashed: floor</span></div><div class="chips" id="hx-tchips"></div><div class="hx-chart" id="hx-temp"></div></div>
-        <div class="card hx-card"><div class="card-h"><h2>Air</h2><div class="seg seg2 mini" role="group" aria-label="Humidity or CO2" id="hx-air-seg"><button data-hxair="hum">Humidity</button><button data-hxair="co2">CO₂</button></div></div><div class="hx-chart" id="hx-air"></div><div class="legend" id="hx-air-legend"></div></div>
+        <div class="card hx-card"><div class="card-h"><h2>Air</h2><div class="seg seg3 mini" role="group" aria-label="Humidity, wall or CO2" id="hx-air-seg"><button data-hxair="hum">Humidity</button><button data-hxair="wall">Wall</button><button data-hxair="co2">CO₂</button></div></div><div class="hx-chart" id="hx-air"></div><div class="legend" id="hx-air-legend"></div><p class="hx-note-p" id="hx-air-note" hidden>Estimated humidity at the coldest wall, from room temperature, humidity and the outside temperature. From 70 % keep an eye on it; above 80 % mould can grow.</p></div>
       </div>
+      <div class="card hx-card"><div class="card-h"><h2>Daily rhythm</h2><span class="small muted">floor heating, last 14 days</span></div><div id="hx-rhythm"></div></div>
       <div class="card"><div class="card-h"><h2>Heating by room</h2><span class="small muted num" id="in-price"></span></div><div id="ebars"></div></div>
     </section>
 

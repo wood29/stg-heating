@@ -17,6 +17,7 @@ const E = {
   nightOn: "binary_sensor.stg_night", nightEn: "input_boolean.stg_night_enabled", warming: "input_boolean.stg_night_warming",
   air: { kitchen: ["sensor.indoor_stg_humidity", "sensor.indoor_stg_carbon_dioxide"], bathroom: ["sensor.indoor_stg_bedroom_humidity", "sensor.indoor_stg_bedroom_carbon_dioxide"], bedroom: ["sensor.indoor_stg_bedroom_humidity_2", "sensor.indoor_stg_bedroom_carbon_dioxide_2"] },
   outT: "sensor.indoor_stg_outdoor_stg_temperature",
+  airT: { kitchen: "sensor.indoor_stg_temperature", bathroom: "sensor.indoor_stg_bedroom_temperature", bedroom: "sensor.indoor_stg_bedroom_temperature_2" },
   bench: "climate.bench_warmer", benchOn: "binary_sensor.stg_bench_heating", bSw: "input_boolean.stg_bench_switch",
   bPlan: "input_boolean.stg_bench_plan", bOnAt: "input_datetime.stg_bench_on", bOffAt: "input_datetime.stg_bench_off", bTemp: "input_number.stg_bench_plan_temp", bRep: "input_select.stg_bench_repeat", benchW: "input_number.stg_bench_power", benchE: "sensor.stg_bench_energy",
   co2On: "input_boolean.stg_co2_alert", co2Limit: "input_number.stg_co2_limit",
@@ -45,7 +46,7 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
   S(E.start, new Date(arr - 3 * H).toISOString()); S(E.stop, new Date(dep - H).toISOString());
   S(E.gap, "0.3"); S(E.preheat, "1.6"); S(E.rate, "0.55"); S(E.last, "");
   S(E.away, "5"); S(E.drop, "2"); S(E.boostInc, "2"); S(E.boostDur, "2"); S(E.margin, "1"); S(E.stopBefore, "1"); S(E.boostTimer, "idle");
-  S(E.air.kitchen[0], 61); S(E.air.kitchen[1], 1480); S(E.air.bathroom[0], 58); S(E.air.bathroom[1], 820); S(E.air.bedroom[0], 52); S(E.air.bedroom[1], 760); S(E.outT, 8.4);
+  S(E.air.kitchen[0], 61); S(E.air.kitchen[1], 1480); S(E.air.bathroom[0], 58); S(E.air.bathroom[1], 820); S(E.air.bedroom[0], 52); S(E.air.bedroom[1], 760); S(E.outT, 8.4); S(E.airT.kitchen, 20.4); S(E.airT.bathroom, 20.6); S(E.airT.bedroom, 18.4);
   S(E.bench, "heat", { current_temperature: 21.5, temperature: 24, hvac_modes: ["off", "heat"], min_temp: 5, max_temp: 40 }); S(E.benchOn, "on"); S(E.bSw, "on"); S(E.benchW, 520); S(E.benchE, 3.2);
   { const a = new Date(); a.setDate(a.getDate() + 1); a.setHours(7, 0, 0, 0); const o = new Date(a); o.setHours(8); S(E.bPlan, "on"); S(E.bOnAt, haDT(a)); S(E.bOffAt, haDT(o)); S(E.bTemp, 25); S(E.bRep, "Once"); }
   S(E.co2On, "on"); S(E.co2Limit, 1400); for (const [d] of E.pushDev) S(`input_boolean.stg_co2_push_${d}`, "on");
@@ -60,6 +61,21 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
     S(`switch.demo_window_${r}`, "on", { friendly_name: `${n} Floor Heating Switch Window detection` });
   }
 })();
+
+/* ---------- last 6 hours per room, for the trend lines ---------- */
+let RECENT = null;
+function demoRecent() {
+  const now = Date.now(), rooms = {};
+  ROOMS.forEach(([r], k) => { const c = states[E.climate(r)]?.attributes || {}, cur = c.current_temperature ?? 20, tgt = c.temperature ?? 20, temp = [];
+    for (let i = 0; i <= 36; i++) { const t = now - (36 - i) * 600e3; temp.push([t, +(cur - (k === 2 || k === 4 ? 1.1 : .2) * (1 - i / 36) + Math.sin(i / 4 + k) * .12).toFixed(2)]); }
+    rooms[r] = { temp, target: [[now - 7 * 3600e3, tgt - (k === 2 ? 1.5 : 0)], ...(k === 2 ? [[now - 2.5 * 3600e3, tgt]] : [])] }; });
+  return { rooms };
+}
+async function loadRecent() {
+  const d = live ? await fetch("api/recent").then(r => r.ok ? r.json() : null).catch(() => null) : demoRecent();
+  if (d) { RECENT = d; renderRooms(); }
+}
+setInterval(() => { if (currentTab === "rooms") loadRecent(); }, 5 * 60e3);
 
 /* ---------- data: live from the NAS server, or the example data ---------- */
 let states = demo, live = false, haUp = false, costData = null;
@@ -123,7 +139,8 @@ function room(r) {
   let text = { off: "Offline", hot: "Heating", low: "Lowered", ok: "Comfortable" }[state];
   const by = warmBy(); if (state === "hot" && by) text = `Heating · warm by ${by}`;
   const [hId, cId] = E.air[r] || [], hum = num(hId, NaN), co2 = num(cId, NaN);
-  return { r, name: RN[r], cur, tgt, cf, online, heating, lowered, state, text, preset: c?.attributes?.preset_mode, hum, co2 };
+  const airT = E.airT[r] ? num(E.airT[r], NaN) : NaN, damp = Number.isFinite(hum) ? wallDamp(Number.isFinite(airT) ? airT : cur, hum, num(E.outT, NaN)) : null;
+  return { r, name: RN[r], cur, tgt, cf, online, heating, lowered, state, text, preset: c?.attributes?.preset_mode, hum, co2, damp, dampLvl: dampLevel(damp?.rh) };
 }
 // when heating has a deadline: the morning "warm by" time, or the arrival during pre-heating
 function warmBy() {
@@ -145,7 +162,9 @@ const co2Limit = () => num(E.co2Limit, 1400);
 const SHORT = [["bedroom", "Bed"], ["bathroom", "Bath"], ["hall", "Hall"], ["kitchen", "Dining"], ["living_room", "Living"]];
 function airLine(x) {
   let out = "";
-  if (Number.isFinite(x.hum)) out += `<span class="air">${Math.round(x.hum)}% humidity</span>`;
+  if (Number.isFinite(x.hum)) out += x.dampLvl === "risk" || x.dampLvl === "watch"
+    ? `<span class="air ${x.dampLvl}">${Math.round(x.hum)}% humidity · wall ${Math.round(x.damp.rh)}%${x.dampLvl === "risk" ? " · mould risk" : " · damp, watch it"}</span>`
+    : `<span class="air">${Math.round(x.hum)}% humidity${x.damp ? ` · wall ${Math.round(x.damp.rh)}%` : ""}</span>`;
   if (Number.isFinite(x.co2)) out += x.co2 >= co2Limit() ? `<span class="air warn">CO₂ ${Math.round(x.co2).toLocaleString("en-GB")} ppm · air it</span>` : `<span class="air">CO₂ ${Math.round(x.co2).toLocaleString("en-GB")} ppm</span>`;
   return out;
 }
@@ -330,7 +349,10 @@ function renderHome() {
     return `<button data-room="${r}" aria-label="${x.name} ${typeof x.cur === "number" ? t1(x.cur) + " degrees" : ""}, ${x.text}"><span>${n}</span><b class="num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}</b><i class="${bad ? "air" : x.state}"></i></button>`; }).join("");
   { const b = bench(); $("#h-bench").innerHTML = `<button data-go="bench" class="bench-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h18M5 13V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 13v6M20 13v6M4 17h16"/></svg><span class="bn">Bench warmer<em>${b.on ? `${b.text} · set to ${t1(b.tgt ?? 0)}°` : (() => { const P = benchPlan(); return P.on && P.valid ? `Timer · ${P.when}` : b.text; })()}</em></span><b class="num">${typeof b.cur === "number" ? t1(b.cur) + "°" : "–"}</b><i class="${b.state}"></i><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>`; }
   const stuffy = ROOMS.map(([r]) => room(r)).filter(x => Number.isFinite(x.co2) && x.co2 >= co2Limit());
-  const an = $("#h-air"); an.hidden = !stuffy.length;
+  const damp = ROOMS.map(([r]) => room(r)).filter(x => x.dampLvl === "risk" || x.dampLvl === "watch").sort((a, b) => b.damp.rh - a.damp.rh);
+  const an = $("#h-air"); an.hidden = !stuffy.length && !damp.length; an.classList.toggle("risk", !stuffy.length && damp[0]?.dampLvl === "risk");
+  if (!stuffy.length && damp.length) { const w = damp[0], away = st(E.stay) !== "on";
+    an.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/></svg><span><b>${w.dampLvl === "risk" ? "Mould risk" : "Damp walls"} in the ${damp.map(x => x.name.toLowerCase()).join(" and ")}</b><br><em>Wall about ${Math.round(w.damp.rh)}% humid · ${away ? "a warmer away temperature helps" : "air briefly and keep it warm"}</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>`; }
   if (stuffy.length) { const names = stuffy.map(x => x.name.toLowerCase()), list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names.at(-1) : names[0];
     an.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/></svg><span><b>Time to air the ${list}</b><br><em>CO₂ ${stuffy.map(x => Math.round(x.co2).toLocaleString("en-GB")).join(" · ")} ppm · a few minutes with the window open</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>`; }
   const dd = (live ? (costData?.days || []) : demoDays()).filter(d => typeof d.eur === "number" && d.eur > 0);
@@ -389,7 +411,8 @@ function renderRooms() {
   $("#rooms").innerHTML = ROOMS.map(([r]) => {
     const x = room(r);
     const air = airLine(x);
-    return `<button class="room" data-room="${r}"><b>${x.name}</b><span class="meta"><span class="st"><i class="dot ${x.state}"></i>${x.text}${x.online && !x.text.includes("warm by") ? `<span class="set"><span class="sep"> · </span>${t1(x.tgt)}°</span>` : ""}</span>${air}</span><span class="t num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}<small>now</small></span></button>`;
+    const sp = RECENT ? spark(RECENT.rooms?.[r]?.temp, RECENT.rooms?.[r]?.target, { hot: x.heating }) : "";
+    return `<button class="room${sp ? " has-spark" : ""}" data-room="${r}"><b>${x.name}</b><span class="meta"><span class="st"><i class="dot ${x.state}"></i>${x.text}${x.online && !x.text.includes("warm by") ? `<span class="set"><span class="sep"> · </span>${t1(x.tgt)}°</span>` : ""}</span>${air}</span>${sp ? `<span class="spark-w">${sp}<small>6 h</small></span>` : ""}<span class="t num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}<small>now</small></span></button>`;
   }).join("");
 }
 
@@ -406,6 +429,7 @@ function renderSheet() {
     <dl class="kv"><dt>Thermostat</dt><dd>${{ MANUAL: "Manual", VACATION: "Lowered", PAUSE: "Frost-safe (lowered)", SCHEDULE: "Schedule", OVERRIDE: "Override" }[x.preset] || x.preset || "–"}</dd>
       <dt>Wi-Fi signal</dt><dd class="num" style="color:${num(E.wifi(x.r)) < -70 ? "var(--warn)" : "inherit"}">${num(E.wifi(x.r))} dBm${num(E.wifi(x.r)) < -70 ? " · weak" : ""}</dd>
       ${Number.isFinite(x.hum) ? `<dt>Humidity</dt><dd class="num">${Math.round(x.hum)} %</dd>` : ""}
+      ${x.damp ? `<dt>Coldest wall</dt><dd class="num" style="color:${x.dampLvl === "risk" ? "var(--bad)" : x.dampLvl === "watch" ? "var(--warn)" : "inherit"}">${Math.round(x.damp.rh)} % humid${x.damp.wall != null ? ` · about ${t1(x.damp.wall)}°` : ""}${x.dampLvl === "risk" ? " · mould can grow" : x.dampLvl === "watch" ? " · watch it" : ""}</dd>` : ""}
       ${Number.isFinite(x.co2) ? `<dt>CO₂</dt><dd class="num" style="color:${x.co2 >= 1400 ? "var(--warn)" : "inherit"}">${Math.round(x.co2)} ppm${x.co2 >= 1400 ? " · open a window for a few minutes" : ""}</dd>` : ""}
       <dt>Energy, 30 days</dt><dd class="num">${Math.round(num(E.energy(x.r)))} kWh</dd></dl>
     <button class="btn ghost" data-go="settings" data-close>Change comfort temperature</button>`;
@@ -596,12 +620,28 @@ function hxRender() {
   const tl = [...HX.tsel].map(k => ({ key: k, vals: put(d.series[k]).map(v => v && v[0]), band: k === "out" ? put(d.series.out).map(v => v && [v[1], v[2]]) : null, color: HXS[k][1], name: HXS[k][0], dashed: !!HXS[k][2], unit: "°C" }));
   hxChart($("#hx-temp"), R, { lines: tl, tip: i => tl.map(l => l.vals[i] != null ? `<i style="background:${l.color}"></i>${l.name} ${t1(l.vals[i])}°` : "") });
   // air
-  const ak = HX.air === "co2" ? "co2" : "hum";
+  const ak = HX.air === "co2" ? "co2" : HX.air === "wall" ? "wall" : "hum";
   document.querySelectorAll("#hx-air-seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.hxair === ak));
-  const al = Object.entries(HXA).map(([r, [n, c]]) => ({ key: r, vals: put(d.series[`${ak}_${r}`]).map(v => Array.isArray(v) ? v[0] : v), color: c, name: n, unit: ak === "co2" ? "ppm" : "%" }));
-  hxChart($("#hx-air"), R, { lines: al, threshold: ak === "co2" ? [1400, "Air it"] : null, fixed: ak === "hum" ? [20, 80] : null,
+  const first = v => Array.isArray(v) ? v[0] : v, outs = put(d.series.out).map(first);
+  const al = Object.entries(HXA).map(([r, [n, c]]) => { const hum = put(d.series[`hum_${r}`]).map(first);
+    const vals = ak !== "wall" ? put(d.series[`${ak}_${r}`]).map(first) : hum.map((h, i) => { const t = first(put(d.series[`air_${r}`])[i]); const w = h != null && t != null ? wallDamp(t, h, outs[i] ?? NaN) : null; return w ? Math.round(w.rh) : null; });
+    return { key: r, vals, color: c, name: n, unit: ak === "co2" ? "ppm" : "%" }; });
+  $("#hx-air-note").hidden = ak !== "wall";
+  hxChart($("#hx-air"), R, { lines: al, threshold: ak === "co2" ? [1400, "Air it"] : ak === "wall" ? [MOULD_RISK, "Mould risk"] : null, fixed: ak === "hum" ? [20, 80] : ak === "wall" ? [40, 90] : null,
     tip: i => al.map(l => l.vals[i] != null ? `<i style="background:${l.color}"></i>${l.name} ${Math.round(l.vals[i])}${ak === "co2" ? " ppm" : " %"}` : "") });
   $("#hx-air-legend").innerHTML = al.map(l => `<span><i style="background:${l.color}"></i>${l.name}</span>`).join("");
+}
+/* daily rhythm: floor heating by hour over the last two weeks */
+async function rhLoad() {
+  const e = new Date(), s = new Date(); s.setHours(0, 0, 0, 0); s.setDate(s.getDate() - 13);
+  let hours = null;
+  if (live) { const q = new URLSearchParams({ start: s.toISOString(), end: e.toISOString(), pstart: s.toISOString(), bucket: "hour" });
+    const d = await fetch("api/history?" + q).then(r => r.ok ? r.json() : null).catch(() => null);
+    if (d) { const sum = new Map(); for (const rows of Object.values(d.rooms || {}).concat([d.bench || []])) for (const [t, v] of rows) if (v != null) sum.set(t, (sum.get(t) || 0) + v); hours = [...sum]; } }
+  else { hours = []; for (let t = +s; t < +e; t += 3600e3) { const h = new Date(t).getHours(), day = Math.floor((t - s) / 864e5), home = day >= 9;
+    hours.push([t, home ? (h >= 4 && h < 8 ? 2.2 : h >= 22 || h < 4 ? .25 : .8) * (.8 + .4 * Math.abs(Math.sin(t / 7e6))) : (h === 3 || h === 15 ? .3 : .02)]); } }
+  if (!hours) { $("#hx-rhythm").innerHTML = `<p class="hx-empty">Couldn't load the hours just now.</p>`; return; }
+  rhythm($("#hx-rhythm"), hours, { empty: "No hourly readings from the thermostats yet." });
 }
 function price0() { const p = parseFloat(st(E.price)); return isNaN(p) ? null : p; }
 
@@ -616,7 +656,8 @@ function go(tab) {
   document.querySelectorAll(".nav").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
   document.querySelectorAll(".view").forEach(v => v.hidden = v.id !== "v-" + tab);
   lsSet("tab", tab); window.scrollTo(0, 0); render();
-  if (tab === "insights") hxLoad();
+  if (tab === "insights") { hxLoad(); rhLoad(); }
+  if (tab === "rooms") loadRecent();
   if (tab === "stay") loadStays();
   if (tab === "bench") { BX.data = null; BT.dirty = false; renderBench(); }
 }

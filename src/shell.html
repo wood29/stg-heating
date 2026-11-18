@@ -701,6 +701,41 @@ dialog.sheet .in{padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));g
   main{padding:30px 40px 48px}
   .temp{font-size:76px}
 }
+/* ==========================================================================
+   Taken over from RoomMind (Nov 2026): room trend lines, daily rhythm, damp walls
+   ========================================================================== */
+/* trend line in each room row: last 6 hours, measured (solid) and target (dashed) */
+.room.has-spark{grid-template-columns:minmax(0,1fr) 72px auto}
+.room .spark-w{grid-row:1/3;grid-column:2;display:flex;flex-direction:column;align-items:stretch;gap:1px}
+.room.has-spark .t{grid-column:3}
+.spark{display:block;width:72px;height:26px;overflow:visible}
+.spark .sl{fill:none;stroke:var(--c-measured);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.spark .sa{fill:var(--c-measured);opacity:.1}
+.spark .sg{fill:none;stroke:var(--ink-3);stroke-width:1;stroke-dasharray:2.5 2.5;vector-effect:non-scaling-stroke;opacity:.8}
+.spark.hot .sl{stroke:var(--c-activity)} .spark.hot .sa{fill:var(--c-activity);opacity:.14}
+.spark-w small{font-size:10px;color:var(--ink-3);text-align:right;line-height:1}
+@media (max-width:359px){.room.has-spark{grid-template-columns:minmax(0,1fr) auto}.room .spark-w{display:none}.room.has-spark .t{grid-column:2}}
+@media (min-width:760px){
+  .rooms .room.has-spark{grid-template-columns:1fr;grid-template-areas:"n" "t" "s" "m"}
+  .rooms .room .spark-w{grid-area:s;grid-row:auto;grid-column:auto}
+  .rooms .room.has-spark .t{grid-column:auto}
+  .rooms .room .spark{width:100%;height:30px}
+  .rooms .room .spark-w small{text-align:left}
+}
+/* damp walls */
+.room .air.watch{color:var(--warn)} .room .air.risk{color:var(--bad);font-weight:500}
+.air-note.risk svg{color:var(--bad)}
+.hx-note-p{font-size:12px;color:var(--ink-3);margin:6px 0 0;line-height:1.4}
+/* daily rhythm grid: days down, hours across */
+.rh{display:grid;grid-template-columns:36px repeat(24,minmax(0,1fr));gap:2px;align-items:center}
+.rh i{display:block;aspect-ratio:1/1;max-height:16px;border-radius:3px;background:color-mix(in srgb,var(--c-activity) var(--a,0%),var(--chip))}
+.rh i.na{background:none;box-shadow:inset 0 0 0 1px var(--line)} .rh i.fut{background:none}
+.rh-d{font-size:11px;color:var(--ink-3);white-space:nowrap;font-variant-numeric:tabular-nums}
+.rh-d.we{color:var(--ink-2);font-weight:600}
+.rh b{font-size:10px;font-weight:400;color:var(--ink-3);text-align:left;white-space:nowrap;overflow:visible;width:0}
+.rh-key{display:flex;align-items:center;gap:4px;justify-content:flex-end;margin-top:8px;font-size:11px;color:var(--ink-3)}
+.rh-key i{display:block;width:12px;height:12px;border-radius:3px;background:color-mix(in srgb,var(--c-activity) var(--a),var(--chip))}
+.rh-key span{margin:0 2px}
 </style>
 
 <div class="shell">

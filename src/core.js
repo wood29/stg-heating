@@ -92,3 +92,56 @@ function hxChart(el, R, o) {
 }
 // navigation buttons, same in both apps
 function navHTML(nav) { return nav.map(([k, l, p]) => `<button class="nav" data-tab="${k}" aria-current="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg><span>${l}</span></button>`).join(""); }
+
+/* ---------- ideas taken over from RoomMind (github.com/snazzybean/roommind) ---------- */
+// Damp walls: humidity at the coldest wall, estimated the DIN 4108-2 way. The wall sits between room and outside
+// temperature (temperature factor 0.8, a typical older building); from 70 % it's worth watching, from 80 % mould can grow.
+const MOULD_WATCH = 70, MOULD_RISK = 80;
+function wallDamp(tRoom, rh, tOut, f = .8) {
+  if (![tRoom, rh].every(Number.isFinite)) return null;
+  const A = 17.271, B = 237.7, es = t => Math.exp(A * t / (B + t));
+  if (!Number.isFinite(tOut)) return { rh: Math.min(100, rh + 10), wall: null };   // no outside reading: room humidity + 10 %, on the safe side
+  const wall = tOut + f * (tRoom - tOut), g = A * tRoom / (B + tRoom) + Math.log(Math.max(1, Math.min(100, rh)) / 100), dew = B * g / (A - g);
+  return { rh: Math.max(0, Math.min(100, 100 * es(dew) / es(wall))), wall };
+}
+const dampLevel = v => v == null ? "" : v >= MOULD_RISK ? "risk" : v >= MOULD_WATCH ? "watch" : "ok";
+
+// Little trend line of the last hours for a room: measured (solid, filled) and target (dashed steps).
+// pts / tgt: [[epoch ms, value], ...]
+function spark(pts, tgt, o = {}) {
+  const W = o.w || 72, H = o.h || 26, now = Date.now(), from = now - (o.hours || 6) * 3600e3;
+  const P = (pts || []).filter(p => p[0] >= from - 3600e3 && Number.isFinite(p[1])), T = (tgt || []).filter(p => Number.isFinite(p[1]));
+  if (P.length < 2) return "";
+  const tIn = T.filter(p => p[0] >= from); const lastBefore = T.filter(p => p[0] < from).at(-1);
+  const steps = (lastBefore ? [[from, lastBefore[1]]] : []).concat(tIn);
+  const vs = P.map(p => p[1]).concat(steps.map(p => p[1]));
+  let lo = Math.min(...vs), hi = Math.max(...vs); if (hi - lo < 1) { const m = (hi + lo) / 2; lo = m - .5; hi = m + .5; }
+  const pad = (hi - lo) * .12; lo -= pad; hi += pad;
+  const x = t => Math.max(0, Math.min(W, (t - from) / (now - from) * W)), y = v => (H - 1) - (v - lo) / (hi - lo) * (H - 2);
+  const line = P.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join("");
+  let st = ""; steps.forEach((p, i) => { const nx = i + 1 < steps.length ? steps[i + 1][0] : now; st += `M${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}H${x(nx).toFixed(1)}`; });
+  const last = P.at(-1);
+  return `<svg class="spark${o.hot ? " hot" : ""}" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" preserveAspectRatio="none" aria-hidden="true">` +
+    `<path class="sa" d="${line}L${x(last[0]).toFixed(1)} ${H}L${x(P[0][0]).toFixed(1)} ${H}Z"/>${st ? `<path class="sg" d="${st}"/>` : ""}<path class="sl" d="${line}"/></svg>`;
+}
+
+// Daily rhythm: when the heating ran, hour by hour over the last two weeks (darker = more energy).
+// hours: [[epoch ms of the hour, kWh], ...]
+function rhythm(el, hours, o = {}) {
+  const days = o.days || 14, today = new Date(); today.setHours(0, 0, 0, 0);
+  const grid = Array.from({ length: days }, (_, i) => { const d = new Date(today); d.setDate(d.getDate() - (days - 1 - i)); return { d, v: Array(24).fill(null) }; });
+  const first = grid[0].d.getTime();
+  for (const [t, v] of hours || []) { if (!Number.isFinite(v) || t < first) continue; const dt = new Date(t), d0 = new Date(dt); d0.setHours(0, 0, 0, 0);
+    const row = grid.find(g => g.d.getTime() === d0.getTime()); if (row) row.v[dt.getHours()] = (row.v[dt.getHours()] || 0) + Math.max(0, v); }
+  const all = grid.flatMap(g => g.v).filter(v => v != null && v > 0).sort((a, b) => a - b);
+  if (!all.length) { el.innerHTML = `<p class="hx-empty" style="padding:24px 0">${o.empty || "No hourly readings yet."}</p>`; return; }
+  const top = all[Math.floor(all.length * .95)] || all.at(-1);   // the top 5 % share the darkest shade, so one spike doesn't wash out the rest
+  const nowH = new Date(); nowH.setMinutes(0, 0, 0);
+  const cell = (g, h) => { const v = g.v[h], t = new Date(g.d); t.setHours(h);
+    if (t > nowH) return `<i class="fut"></i>`;
+    if (v == null) return `<i class="na" title="${fmtDay(g.d)} ${String(h).padStart(2, "0")}:00 · no reading"></i>`;
+    const s = Math.min(1, v / top); return `<i style="--a:${s >= .04 ? (12 + 88 * Math.sqrt(s)).toFixed(0) : 0}%" title="${fmtDay(g.d)} ${String(h).padStart(2, "0")}:00 · ${v >= 10 ? v.toFixed(0) : v.toFixed(2)} kWh"></i>`; };
+  el.innerHTML = `<div class="rh">${grid.map(g => `<span class="rh-d${g.d.getDay() === 0 || g.d.getDay() === 6 ? " we" : ""}">${g.d.toLocaleDateString("en-GB", { weekday: "narrow" })} ${g.d.getDate()}</span>${Array.from({ length: 24 }, (_, h) => cell(g, h)).join("")}`).join("")}
+    <span></span>${Array.from({ length: 24 }, (_, h) => `<b>${h % 6 === 0 ? String(h).padStart(2, "0") : ""}</b>`).join("")}</div>
+    <div class="rh-key"><span>Less</span><i style="--a:12%"></i><i style="--a:40%"></i><i style="--a:70%"></i><i style="--a:100%"></i><span>More</span></div>`;
+}

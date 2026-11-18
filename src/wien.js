@@ -172,8 +172,19 @@ function renderHome() {
     `${meas.length ? ` Measuring now: ${meas.map(z => z.name.toLowerCase()).join(", ")}.` : ""}</p>`;
 }
 
+// last 6 hours per room from the bridge history, for the trend lines
+let RECENT = null;
+async function loadRecent() {
+  const d = live ? await fetch("api/history?days=0.25").then(r => r.ok ? r.json() : null).catch(() => null) : hxDemo(0.25);
+  if (!d?.t?.length) return;
+  const rooms = {};
+  for (const [sl, v] of Object.entries(d.zones || {})) rooms[sl] = { temp: d.t.map((t, j) => [t * 1000, v.temp?.[j]]).filter(x => x[1] != null), target: d.t.map((t, j) => [t * 1000, v.target?.[j]]).filter(x => x[1] != null) };
+  RECENT = { rooms }; renderRooms();
+}
+setInterval(() => { if (currentTab === "rooms") loadRecent(); }, 5 * 60e3);
 function roomButton(z) {
-  return `<button class="room" data-zone="${z.slug}"><b>${z.name}</b><span class="meta"><span class="st"><i class="dot ${z.off ? "" : z.state}"></i>${z.text}${!z.off && z.target != null ? `<span class="set"><span class="sep"> · </span>${t1(z.target)}°</span>` : ""}</span><span class="air">${esc(planLine(z))}</span></span><span class="t num">${z.temp != null ? t1(z.temp) + "°" : "–"}<small>now</small></span></button>`;
+  const sp = RECENT && !z.off ? spark(RECENT.rooms[z.slug]?.temp, RECENT.rooms[z.slug]?.target, { hot: z.state === "hot" || z.warming }) : "";
+  return `<button class="room${sp ? " has-spark" : ""}" data-zone="${z.slug}"><b>${z.name}</b><span class="meta"><span class="st"><i class="dot ${z.off ? "" : z.state}"></i>${z.text}${!z.off && z.target != null ? `<span class="set"><span class="sep"> · </span>${t1(z.target)}°</span>` : ""}</span><span class="air">${esc(planLine(z))}</span></span>${sp ? `<span class="spark-w">${sp}<small>6 h</small></span>` : ""}<span class="t num">${z.temp != null ? t1(z.temp) + "°" : "–"}<small>now</small></span></button>`;
 }
 function renderRooms() {
   const zs = zones();
@@ -311,11 +322,20 @@ function hxRender() {
   // key figures across heated rooms
   const means = zs.filter(z => !z.off).map(z => { const v = T[z.slug]?.filter(Boolean).map(x => x[0]) || []; return [z, v.length ? v.reduce((a, b) => a + b, 0) / v.length : null]; }).filter(x => x[1] != null);
   const all = means.map(x => x[1]), sp = zs.map(z => z.mpd).filter(v => v != null);
+  const from0 = Date.now() / 1000 - HX.days * 86400; let onT = 0, cold = 0;
+  for (const z of zs) { if (z.off) continue; const v = d.zones[z.slug]; if (!v) continue;
+    d.t.forEach((t, j) => { const a = v.temp?.[j], g = v.target?.[j]; if (t < from0 || a == null || g == null || g < 10) return; if (a >= g - .5) onT++; else cold++; }); }
+  const share = onT + cold ? Math.floor(onT / (onT + cold) * 100) : null;
   const warm = means.slice().sort((a, b) => b[1] - a[1])[0], cool = means.slice().sort((a, b) => a[1] - b[1])[0];
-  $("#hx-kpis").innerHTML = [["Average", all.length ? `${t1(all.reduce((a, b) => a + b, 0) / all.length)}<small>°C</small>` : "–", "heated rooms"],
-    ["Warmest", warm ? `${t1(warm[1])}<small>°C</small>` : "–", warm ? warm[0].name : ""], ["Coolest", cool ? `${t1(cool[1])}<small>°C</small>` : "–", cool ? cool[0].name : ""],
+  $("#hx-kpis").innerHTML = [["On target", share != null ? `${share}<small>%</small>` : "–", share != null ? (share >= 100 ? "never too cold" : `too cold ${100 - share}% of the time`) : "no targets yet"],
+    ["Average", all.length ? `${t1(all.reduce((a, b) => a + b, 0) / all.length)}<small>°C</small>` : "–", warm ? `warmest: ${warm[0].name}` : "heated rooms"], ["Coolest", cool ? `${t1(cool[1])}<small>°C</small>` : "–", cool ? cool[0].name : ""],
     ["Warm-up", sp.length ? `${Math.round(sp.reduce((a, b) => a + b, 0) / sp.length)}<small>min/°C</small>` : "–", sp.length ? `average of ${sp.length} room${sp.length > 1 ? "s" : ""}` : "not learned yet"]]
     .map(([l, v, e]) => `<div class="stat"><span>${l}</span><b class="num">${v}</b><em>${esc(e)}</em></div>`).join("");
+}
+async function rhLoad() {
+  const d = await loadEnergy(14), card = $("#rh-card");
+  card.hidden = !d?.enabled; if (!d?.enabled) return;
+  rhythm($("#hx-rhythm"), (d.hours || []).map(([t, he]) => [t * 1000, he]), { empty: "No hourly readings from the heat pump yet." });
 }
 function enRender(buckets, idx, hourly) {
   const card = $("#en-card"); card.hidden = !EN.enabled; if (!EN.enabled) return;
@@ -375,7 +395,8 @@ function go(tab) {
   document.querySelectorAll(".nav").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
   document.querySelectorAll(".view").forEach(v => v.hidden = v.id !== "v-" + tab);
   lsSet("tab", tab); window.scrollTo(0, 0); render();
-  if (tab === "insights") hxLoad();
+  if (tab === "insights") { hxLoad(); rhLoad(); }
+  if (tab === "rooms") loadRecent();
 }
 let hxRz; addEventListener("resize", () => { clearTimeout(hxRz); hxRz = setTimeout(() => { if (currentTab === "insights") hxRender(); }, 160); });
 
