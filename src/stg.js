@@ -497,8 +497,8 @@ function renderInsights() {
   $("#in-curve").textContent = `The flat warms up by about ${rate.toFixed(2)} °C an hour. Each warm-up from a lowered temperature is measured and blended in, and the planner starts heating that much earlier, plus ${margin} h to be safe. ${last && last !== "unknown" ? "Last measurement: " + last + "." : "No warm-up measured yet."}`;
   const lr = LEARN?.rooms;
   $("#in-learn").innerHTML = lr ? `<div class="lr-h"><span></span><span>Afterglow</span><span>Heat loss</span></div>` + ROOMS.map(([r, n]) => { const x = lr[r] || {};
-      return `<div class="lr"><span>${n}</span><b class="num">${x.coast != null ? hTxt(x.coast) : "<em>learning</em>"}</b><b class="num">${x.loss != null ? `${x.loss.toFixed(2)}°<small>/h</small>` : "<em>learning</em>"}</b></div>`; }).join("") +
-    `<p class="note" style="margin-top:8px">Afterglow: how long a room stays within 0.5 °C once its heating turns down. Heat loss: how fast it cools at 10 °C colder outside, without heating; lower is better insulated. ${LEARN.updated ? `Updated ${fmtD(new Date(LEARN.updated))}.` : "First results after a day."}</p>` : `<p class="note">Loading…</p>`;
+      return `<div class="lr"><span>${n}</span><b class="num">${x.coast != null ? (x.atLeast ? "≥ " : "") + hTxt(x.coast) : "<em>learning</em>"}</b><b class="num">${x.loss == null ? "<em>learning</em>" : x.loss < .05 ? "<em>very low</em>" : `${x.loss.toFixed(2)}°<small>/h</small>`}</b></div>`; }).join("") +
+    `<p class="note" style="margin-top:8px">Afterglow: how long a room stays within 0.5 °C once its heating turns down (≥ = still warm when the heating came back). Heat loss: how fast it cools at 10 °C colder outside, without heating; lower is better insulated. ${LEARN.updated ? `Updated ${fmtD(new Date(LEARN.updated))}.` : "First results after a day."}</p>` : `<p class="note">Loading…</p>`;
   $("#health").innerHTML = ROOMS.map(([r, n]) => { const x = room(r), w = num(E.wifi(r)); return `<dt>${n}</dt><dd style="color:${!x.online ? "var(--bad)" : w < -70 ? "var(--warn)" : "var(--ok)"}">${x.online ? "Online" : "Offline"} · <span class="num">${w} dBm</span></dd>`; }).join("");
   const weak = ROOMS.filter(([r]) => num(E.wifi(r)) < -70).map(x => x[1]);
   $("#health-note").textContent = weak.length ? `${weak.join(", ")}: weak Wi-Fi. An eero closer to it would stop the dropouts.` : "All thermostats have good Wi-Fi.";
@@ -517,7 +517,7 @@ function renderSettings() {
   if (document.activeElement?.closest?.("#settings,#comfort,#night,#co2set")) return;
   const learnedStop = st(E.stopLearned) === "on", care = LEARN?.care;
   $("#settings").innerHTML = SETTINGS.map(([id, l, d, mi, ma, s, u], i) => {
-    if (id === E.stopBefore && learnedStop) d = `Learned from the floors: they keep the rooms warm about ${hTxt(LEARN?.flat?.coast)} after heating stops.`;
+    if (id === E.stopBefore && learnedStop) d = `Learned from the floors: they keep the rooms warm ${LEARN?.flat?.atLeast ? "at least " : "about "}${hTxt(LEARN?.flat?.coast)} after heating stops.`;
     if (id === E.away && care?.raised) d = `Raised to ${t1(care.to)} °C by mould protection until the walls are dry (yours: ${t1(care.base)} °C).`;
     const lock = id === E.stopBefore && learnedStop;
     return `<div class="setting"><div><b>${l}</b><p>${d}</p></div><output class="num" id="o${i}">${num(id)} ${u}</output><input type="range" id="s${i}" aria-label="${l}" min="${mi}" max="${ma}" step="${s}" value="${num(id)}" data-set="${i}" ${lock ? "disabled" : ""}></div>`; }).join("") +

@@ -285,7 +285,7 @@ const OUT_T = "sensor.indoor_stg_outdoor_stg_temperature", AWAY_T = "input_numbe
 const PROTECT = "input_boolean.stg_mould_protection", STOP_LEARNED = "input_boolean.stg_learned_stop";
 const PUSH = [["mhh17", "input_boolean.stg_co2_push_mhh17"], ["mike_m4", "input_boolean.stg_co2_push_mike_m4"]];
 let L = null;
-async function loadLearn() { if (L) return L; try { L = JSON.parse(await readFile(LEARN, "utf8")); } catch { L = {}; } L.rooms ||= {}; L.care ||= {}; return L; }
+async function loadLearn() { if (L) return L; try { L = JSON.parse(await readFile(LEARN, "utf8")); } catch { L = {}; } if (L.v !== 2) { L.rooms = {}; L.until = 0; L.v = 2; } L.rooms ||= {}; L.care ||= {}; return L; }
 const saveLearn = async () => { await mkdir(path.dirname(LEARN), { recursive: true }); await writeFile(LEARN, JSON.stringify(L)); };
 const fnum = id => { const v = parseFloat(states[id]?.state); return Number.isFinite(v) ? v : NaN; };
 const call = (domain, service, service_data) => haSend({ type: "call_service", domain, service, service_data });
@@ -383,7 +383,7 @@ function learnSummary() {
   const rooms = Object.fromEntries(ROOMS.map(r => [r, summarise(L?.rooms?.[r]?.ev || [], L?.rooms?.[r]?.ls || [])]));
   const cs = ROOMS.map(r => rooms[r].coast).filter(v => v != null).sort((a, b) => a - b), n = ROOMS.reduce((a, r) => a + rooms[r].events, 0);
   const coast = cs.length >= 2 ? cs[cs.length >> 1] : null;
-  return { rooms, flat: { coast, events: n, stop: coast != null && n >= 3 ? Math.min(4, Math.max(.5, Math.floor(coast * 2) / 2)) : null } };
+  return { rooms, flat: { coast, atLeast: ROOMS.filter(r => rooms[r].atLeast).length * 2 > cs.length, events: n, stop: coast != null && n >= 3 ? Math.min(4, Math.max(.5, Math.floor(coast * 2) / 2)) : null } };
 }
 async function applyStop() {
   if (states[STOP_LEARNED]?.state !== "on") return;

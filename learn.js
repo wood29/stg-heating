@@ -32,14 +32,18 @@ export function coastEvents(T, G, from) {
   for (let i = 1; i < T.length; i++) {
     const g0 = G[i - 1], g1 = G[i], c0 = T[i];
     if (g0 == null || g1 == null || c0 == null || T[i - 1] == null || g1 > g0 - DROP || T[i - 1] < g0 - .7) continue;
-    let end = null, peak = c0, censored = false;
+    let end = null, peak = c0, censored = false, back = null;
     for (let j = i + 1; j < T.length && (j - i) * STEP <= COAST_MAX_H * 3600e3; j++) {
-      if (G[j] != null && G[j] >= g0 - COAST_BAND) { censored = true; break; }   // heating came back on first
+      if (G[j] != null && G[j] >= g0 - COAST_BAND) { censored = true; back = j; break; }   // heating came back on first
       if (T[j] == null) continue;
       peak = Math.max(peak, T[j]);
       if (T[j] <= c0 - COAST_BAND) { end = j; break; }
     }
-    if (censored) continue;
+    if (censored) {   // still warm when the heating came back (e.g. the morning warm-up): it lasts at least this long
+      const h = (back - i) * STEP / 3600e3;
+      if (h >= 2) ev.push({ t: from + i * STEP, hours: Math.round(h * 4) / 4, rise: Math.round((peak - c0) * 10) / 10, capped: true });
+      continue;
+    }
     const hours = end == null ? (T.length - 1 - i) * STEP / 3600e3 : (end - i) * STEP / 3600e3;
     if (end == null && hours < COAST_MAX_H) continue;                            // ran out of data, not a measurement
     ev.push({ t: from + i * STEP, hours: Math.round(Math.min(hours, COAST_MAX_H) * 4) / 4, rise: Math.round((peak - c0) * 10) / 10, capped: end == null });
@@ -68,8 +72,10 @@ export function summarise(ev, ls) {
   const coast = median(ev.map(e => e.hours)), rise = median(ev.map(e => e.rise));
   const ks = ls.map(s => s.k).filter(Number.isFinite);
   const k = ks.length >= 12 ? median(ks) : null;
-  return { coast: ev.length >= 2 ? coast : null, rise: ev.length >= 2 ? rise : null, events: ev.length, loss: k != null && k > 0 ? Math.round(k * 10 * 100) / 100 : null,
-    tau: k != null && k > 0 ? Math.round(1 / k) : null, samples: ks.length };
+  // coast "at least": when most measurements ended because the heating came back before the room cooled
+  const atLeast = ev.length >= 2 && ev.filter(e => e.capped).length * 2 > ev.length;
+  return { coast: ev.length >= 2 ? coast : null, atLeast, rise: ev.length >= 2 ? rise : null, events: ev.length,
+    loss: k != null ? Math.max(0, Math.round(k * 10 * 100) / 100) : null, tau: k != null && k > 0 ? Math.round(1 / k) : null, samples: ks.length };
 }
 
 // merge new events/samples into the kept ones, without duplicates, keeping the last `days`

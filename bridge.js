@@ -234,7 +234,7 @@ async function outsideHistory(from, to) {
 }
 async function learnRun() {
   try {
-    if (!L) { try { L = JSON.parse(await readFile(LEARN, "utf8")); } catch { L = {}; } L.rooms ||= {}; }
+    if (!L) { try { L = JSON.parse(await readFile(LEARN, "utf8")); } catch { L = {}; } if (L.v !== 2) { L.rooms = {}; L.v = 2; } L.rooms ||= {}; }
     const d = await bridge("history/45");
     if (!d?.t?.length) throw new Error("no history from the bridge");
     const from = Math.ceil(d.t[0] * 1000 / 900e3) * 900e3, to = Math.floor(Date.now() / 900e3) * 900e3;

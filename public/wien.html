@@ -1182,8 +1182,8 @@ function renderLearn() {
   if (!LEARN) { el.innerHTML = `<p class="note">Loading…</p>`; return; }
   const zs = zones().filter(z => LEARN.rooms?.[z.slug]);
   el.innerHTML = zs.length ? `<div class="lr-h"><span></span><span>Afterglow</span><span>Heat loss</span></div>` + zs.map(z => { const x = LEARN.rooms[z.slug];
-      return `<div class="lr"><span>${z.name}</span><b class="num">${x.coast != null ? hTxt(x.coast) : "<em>learning</em>"}</b><b class="num">${x.loss != null ? `${x.loss.toFixed(2)}°<small>/h</small>` : "<em>learning</em>"}</b></div>`; }).join("") +
-    `<p class="note" style="margin-top:8px">Afterglow: how long a room stays within 0.5 °C once its heating turns down. Heat loss: how fast it cools at 10 °C colder outside, without heating; lower is better insulated. ${LEARN.updated ? `Updated ${fmtD(new Date(LEARN.updated))}.` : "First results after a day."}</p>`
+      return `<div class="lr"><span>${z.name}</span><b class="num">${x.coast != null ? (x.atLeast ? "≥ " : "") + hTxt(x.coast) : "<em>learning</em>"}</b><b class="num">${x.loss == null ? "<em>learning</em>" : x.loss < .05 ? "<em>very low</em>" : `${x.loss.toFixed(2)}°<small>/h</small>`}</b></div>`; }).join("") +
+    `<p class="note" style="margin-top:8px">Afterglow: how long a room stays within 0.5 °C once its heating turns down (≥ = still warm when the heating came back). Heat loss: how fast it cools at 10 °C colder outside, without heating; lower is better insulated. ${LEARN.updated ? `Updated ${fmtD(new Date(LEARN.updated))}.` : "First results after a day."}</p>`
     : `<p class="note">${LEARN.error ? esc(LEARN.error) : "First results after a day of history."}</p>`;
 }
 
