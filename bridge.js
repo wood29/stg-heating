@@ -48,12 +48,12 @@ async function login() {
   cookie = set.map(c => c.split(";")[0]).join("; ");
   console.log("Signed in to the Intellihome bridge");
 }
-async function bridge(p, body) {
+async function bridge(p, body, ms) {
   for (let attempt = 0; attempt < 2; attempt++) {
     if (!cookie) await login();
     const r = await fetch(BRIDGE + "/api/" + p, {
       method: body ? "POST" : "GET", headers: { Cookie: cookie, ...(body ? { "Content-Type": "application/json" } : {}) },
-      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(body ? 30000 : 15000),
+      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(ms || (body ? 30000 : 15000)),
     });
     if (r.status === 401) { cookie = ""; continue; }       // session expired: sign in again once
     let data = null; try { data = await r.json(); } catch { }
@@ -235,7 +235,7 @@ async function outsideHistory(from, to) {
 async function learnRun() {
   try {
     if (!L) { try { L = JSON.parse(await readFile(LEARN, "utf8")); } catch { L = {}; } if (L.v !== 2) { L.rooms = {}; L.v = 2; } L.rooms ||= {}; }
-    const d = await bridge("history/45");
+    const d = await bridge("history/45", undefined, 120000);
     if (!d?.t?.length) throw new Error("no history from the bridge");
     const from = Math.ceil(d.t[0] * 1000 / 900e3) * 900e3, to = Math.floor(Date.now() / 900e3) * 900e3;
     const O = onGrid(await outsideHistory(from - 864e5, to), from, to, 3 * 3600e3);
@@ -249,7 +249,7 @@ async function learnRun() {
     await mkdir(path.dirname(LEARN), { recursive: true }); await writeFile(LEARN, JSON.stringify(L));
     console.log(`Learning: ${Object.entries(L.rooms).map(([s, k]) => { const x = summarise(k.ev, k.ls); return `${s} coast ${x.coast ?? "–"} h, loss ${x.loss ?? "–"} °C/h`; }).join("; ")}`);
     learnErr = "";
-  } catch (e) { if (e.message !== learnErr) console.error(`Learning: ${e.message}`); learnErr = e.message; }
+  } catch (e) { if (e.message !== learnErr) console.error(`Learning: ${e.message}`); learnErr = e.message; setTimeout(learnRun, 30 * 60e3); }
 }
 async function learnInfo() {
   if (!L) { try { L = JSON.parse(await readFile(LEARN, "utf8")); } catch { L = { rooms: {} }; } }
