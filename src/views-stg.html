@@ -6,7 +6,8 @@
             <div class="temp-row"><div class="temp num" id="h-temp">–</div><div class="outside" id="h-out" hidden><span>Outside</span><b class="num"></b></div></div>
             <div class="status"><i id="h-dot"></i><span id="h-status">–</span></div>
             <p class="sub" id="h-sub"></p>
-            <button class="air-note" id="h-air" data-go="rooms" hidden></button>
+            <p class="next" id="h-next" hidden></p>
+            <button class="air-note" id="h-air"></button>
             <div class="facts" id="h-facts"></div>
           </div>
           <div style="grid-area:strip" class="strip-wrap"><div class="card strip" id="h-rooms" aria-label="Room temperatures"></div><div class="card bench-card" id="h-bench"></div></div>
@@ -93,6 +94,7 @@
     <!-- INSIGHTS -->
     <section class="view" id="v-insights" hidden aria-label="Insights">
       <div class="page-h"><h1>Insights</h1></div>
+      <div class="g-two"><div class="card" id="days-card"></div><div class="card" id="check-card"></div></div>
       <div class="hx-bar">
         <div class="seg seg4" role="group" aria-label="Period" id="hx-seg"><button data-hx="day">Day</button><button data-hx="week">Week</button><button data-hx="month">Month</button><button data-hx="year">Year</button></div>
         <div class="hx-nav"><button id="hx-prev" aria-label="Previous period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><b id="hx-label" aria-live="polite">–</b><button id="hx-next" aria-label="Next period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button></div>

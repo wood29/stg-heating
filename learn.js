@@ -92,3 +92,60 @@ export function wallDamp(tRoom, rh, tOut, f = .8) {
   const wall = tOut + f * (tRoom - tOut), g = A * tRoom / (B + tRoom) + Math.log(Math.max(1, Math.min(100, rh)) / 100), dew = B * g / (A - g);
   return { rh: Math.max(0, Math.min(100, 100 * es(dew) / es(wall))), wall };
 }
+
+// ---------------------------------------------------------------- weather forecast vs your own outdoor sensor (idea from ClimateAdvisor)
+// Each hour the app notes what the forecast said for that hour 3–4 hours earlier, and later what the outdoor sensor
+// actually read. The typical miss per hour of the day (median, last 21 days) corrects the next forecasts.
+// samples: [{ t: hour start ms, fc: forecast °C, act: measured °C }]
+export function forecastBias(samples, days = 21) {
+  const cut = Date.now() - days * 864e5, s = (samples || []).filter(x => x.t >= cut && Number.isFinite(x.fc) && Number.isFinite(x.act));
+  const all = s.map(x => x.act - x.fc);
+  const overall = all.length >= 12 ? median(all) : null;
+  const byHour = Array.from({ length: 24 }, (_, h) => { const v = s.filter(x => new Date(x.t).getHours() === h).map(x => x.act - x.fc); return v.length >= 4 ? median(v) : overall; });
+  // honest score: correct each of the last 7 days only with what was known before it
+  const recent = s.filter(x => x.t >= Date.now() - 7 * 864e5);
+  let raw = 0, cor = 0, n = 0;
+  for (const x of recent) {
+    const before = s.filter(y => y.t < x.t - 864e5 / 2), hv = before.filter(y => new Date(y.t).getHours() === new Date(x.t).getHours()).map(y => y.act - y.fc);
+    const b = hv.length >= 4 ? median(hv) : before.length >= 12 ? median(before.map(y => y.act - y.fc)) : 0;
+    raw += Math.abs(x.act - x.fc); cor += Math.abs(x.act - x.fc - b); n++;
+  }
+  const r1 = v => Math.round(v * 10) / 10;
+  return { byHour: byHour.map(v => v == null ? null : r1(v)), overall: overall == null ? null : r1(overall), samples: s.length,
+    score: n >= 12 ? { raw: r1(raw / n), corrected: r1(cor / n), hours: n } : null };
+}
+export const correct = (fc, t, bias) => { const b = bias?.byHour?.[new Date(t).getHours()] ?? bias?.overall; return Number.isFinite(fc) ? fc + (Number.isFinite(b) ? b : 0) : fc; };
+
+// ---------------------------------------------------------------- warm on time? (self-check)
+// Each time a room's target goes up by 1 °C or more (a plan time, the morning, an arrival), was it already within
+// 0.5 °C of the new target? If not, how long until it was. T, G on the 15-minute grid.
+export function warmChecks(T, G, from) {
+  const out = [];
+  for (let i = 1; i < T.length; i++) {
+    const g0 = G[i - 1], g1 = G[i]; if (g0 == null || g1 == null || g1 < g0 + 1 || g1 < 15) continue;
+    if (T[i] == null) continue;
+    let late = null;
+    if (T[i] < g1 - .5) { late = 6 * 60; for (let j = i; j < T.length && (j - i) * 15 <= 6 * 60; j++) { if (G[j] != null && G[j] < g1 - .5) { late = null; break; } if (T[j] != null && T[j] >= g1 - .5) { late = (j - i) * 15; break; } } if (late === null) continue; }
+    out.push({ t: from + i * STEP, target: g1, temp: T[i], late: late ?? 0 });
+  }
+  return out;
+}
+export function warmSummary(ev) {
+  if (!ev?.length) return null;
+  const onTime = ev.filter(e => e.late <= 15).length, late = ev.filter(e => e.late > 15);
+  return { checks: ev.length, onTime, lateAvg: late.length ? Math.round(late.reduce((a, e) => a + e.late, 0) / late.length) : 0 };
+}
+
+// deadlines: [{ t, target }] (a plan time, an arrival, the morning). Skipped when the room's target wasn't up by then
+// (plan paused, away). T, G on the 15-minute grid starting at `from`.
+export function warmChecksAt(T, G, from, deadlines) {
+  const out = [];
+  for (const d of deadlines) {
+    const i = Math.round((d.t - from) / STEP); if (i < 0 || i >= T.length || T[i] == null || G[i] == null || G[i] < d.target - .5) continue;
+    let late = 0;
+    if (T[i] < d.target - .5) { late = 6 * 60; for (let j = i; j < T.length && (j - i) * 15 <= 6 * 60; j++) if (T[j] != null && T[j] >= d.target - .5) { late = (j - i) * 15; break; } }
+    if (late === 6 * 60 && i + 24 >= T.length) continue;   // not enough data after it yet
+    out.push({ t: d.t, target: d.target, temp: T[i], late });
+  }
+  return out;
+}

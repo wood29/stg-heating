@@ -716,6 +716,9 @@ dialog.sheet .in{padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));g
 .spark .sl{fill:none;stroke:var(--c-measured);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
 .spark .sa{fill:var(--c-measured);opacity:.1}
 .spark .sg{fill:none;stroke:var(--ink-3);stroke-width:1;stroke-dasharray:2.5 2.5;vector-effect:non-scaling-stroke;opacity:.8}
+.spark .sf{fill:none;stroke:var(--c-measured);stroke-width:1.4;stroke-dasharray:2 2.5;stroke-linecap:round;vector-effect:non-scaling-stroke;opacity:.75}
+.spark .sn{stroke:var(--line);stroke-width:1;vector-effect:non-scaling-stroke}
+.spark.hot .sf{stroke:var(--c-activity)}
 .spark.hot .sl{stroke:var(--c-activity)} .spark.hot .sa{fill:var(--c-activity);opacity:.14}
 .spark-w small{font-size:10px;color:var(--ink-3);text-align:right;line-height:1}
 @media (max-width:359px){.room.has-spark{grid-template-columns:minmax(0,1fr) auto}.room .spark-w{display:none}.room.has-spark .t{grid-column:2}}
@@ -740,6 +743,24 @@ dialog.sheet .in{padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));g
 .rh-key{display:flex;align-items:center;gap:4px;justify-content:flex-end;margin-top:8px;font-size:11px;color:var(--ink-3)}
 .rh-key i{display:block;width:12px;height:12px;border-radius:3px;background:color-mix(in srgb,var(--c-activity) var(--a),var(--chip))}
 .rh-key span{margin:0 2px}
+/* Home: "Next" line and the "For you" card (ideas from ClimateAdvisor) */
+.next{margin:8px 0 0;font-size:13.5px;line-height:1.4;color:var(--ink-2)}
+.next span{display:inline-block;margin-right:6px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.brand-hero .next{color:rgba(255,255,255,.92)}.brand-hero .next span{color:rgba(255,255,255,.7)}
+.air-note small{display:block;font-size:11px;font-weight:600;opacity:.75;margin-bottom:1px}
+.air-note.calm{cursor:default}.air-note.calm b{font-weight:500}
+.brand-hero .air-note.calm{background:rgba(255,255,255,.1)}.brand-hero .air-note.calm svg{color:rgba(255,255,255,.85)}
+.air-note:not(.calm){cursor:pointer}
+/* room sheet: forecast line */
+.fc-line{margin:2px 0 0;font-size:13.5px;color:var(--ink-2)}.fc-line span{font-size:11.5px;font-weight:600;color:var(--ink-3);margin-right:6px}
+/* Insights: yesterday / today / tomorrow */
+.dt{display:grid;grid-template-columns:minmax(0,1.25fr) repeat(3,minmax(0,1fr));gap:8px 10px;align-items:baseline;font-size:13.5px}
+.dt>b{font-size:12px;font-weight:600;color:var(--ink-3)}
+.dt>span:nth-child(4n+5){color:var(--ink-2)}
+.dt em{display:block;font-style:normal;font-size:12px;color:var(--ink-3)}.dt em.only{font-size:13.5px;color:var(--ink-2)}
+.dt>span:nth-child(n+5){padding-top:8px;border-top:1px solid var(--line)}
+.ck>div{padding:9px 0;border-top:1px solid var(--line)}.ck>div:first-child{border-top:0;padding-top:0}
+.ck span{display:block;font-size:12px;font-weight:600;color:var(--ink-3);margin-bottom:2px}.ck p{margin:0;font-size:13.5px;line-height:1.4;color:var(--ink-2)}
 /* what the floors have learned (Settings → Diagnostics) */
 .lr-h,.lr{display:grid;grid-template-columns:minmax(0,1fr) 84px 84px;gap:8px;align-items:baseline}
 .lr-h span{font-size:11.5px;color:var(--ink-3);text-align:right}
@@ -768,7 +789,8 @@ dialog.sheet .in{padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));g
             <div class="temp-row"><div class="temp num" id="h-temp">–</div><div class="outside" id="h-out" hidden><span>Outside</span><b class="num"></b></div></div>
             <div class="status"><i id="h-dot"></i><span id="h-status">–</span></div>
             <p class="sub" id="h-sub"></p>
-            <button class="air-note" id="h-air" data-go="rooms" hidden></button>
+            <p class="next" id="h-next" hidden></p>
+            <button class="air-note" id="h-air"></button>
             <div class="facts" id="h-facts"></div>
           </div>
           <div style="grid-area:strip" class="strip-wrap"><div class="card strip" id="h-rooms" aria-label="Room temperatures"></div><div class="card bench-card" id="h-bench"></div></div>
@@ -855,6 +877,7 @@ dialog.sheet .in{padding:8px 18px calc(18px + env(safe-area-inset-bottom,0px));g
     <!-- INSIGHTS -->
     <section class="view" id="v-insights" hidden aria-label="Insights">
       <div class="page-h"><h1>Insights</h1></div>
+      <div class="g-two"><div class="card" id="days-card"></div><div class="card" id="check-card"></div></div>
       <div class="hx-bar">
         <div class="seg seg4" role="group" aria-label="Period" id="hx-seg"><button data-hx="day">Day</button><button data-hx="week">Week</button><button data-hx="month">Month</button><button data-hx="year">Year</button></div>
         <div class="hx-nav"><button id="hx-prev" aria-label="Previous period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><b id="hx-label" aria-live="polite">–</b><button id="hx-next" aria-label="Next period"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button></div>
@@ -1142,21 +1165,50 @@ const dampLevel = v => v == null ? "" : v >= MOULD_RISK ? "risk" : v >= MOULD_WA
 // Little trend line of the last hours for a room: measured (solid, filled) and target (dashed steps).
 // pts / tgt: [[epoch ms, value], ...]
 function spark(pts, tgt, o = {}) {
-  const W = o.w || 72, H = o.h || 26, now = Date.now(), from = now - (o.hours || 6) * 3600e3;
-  const P = (pts || []).filter(p => p[0] >= from - 3600e3 && Number.isFinite(p[1])), T = (tgt || []).filter(p => Number.isFinite(p[1]));
+  // o.ahead: [[t, v]] forecast after now (dotted), o.aheadTgt: [[t, target]] planned target steps after now
+  const W = o.w || 72, H = o.h || 26, now = Date.now(), from = now - (o.hours || 6) * 3600e3, A = (o.ahead || []).filter(p => p[0] > now && Number.isFinite(p[1]));
+  const to = A.length ? now + (o.aheadHours || 6) * 3600e3 : now;
+  const P = (pts || []).filter(p => p[0] >= from - 3600e3 && Number.isFinite(p[1])), T = (tgt || []).filter(p => Number.isFinite(p[1])).concat((o.aheadTgt || []).filter(p => p[0] > now && p[0] <= to));
   if (P.length < 2) return "";
-  const tIn = T.filter(p => p[0] >= from); const lastBefore = T.filter(p => p[0] < from).at(-1);
+  const tIn = T.filter(p => p[0] >= from).sort((a, b) => a[0] - b[0]); const lastBefore = T.filter(p => p[0] < from).at(-1);
   const steps = (lastBefore ? [[from, lastBefore[1]]] : []).concat(tIn);
-  const vs = P.map(p => p[1]).concat(steps.map(p => p[1]));
+  const Ain = A.filter(p => p[0] <= to);
+  const vs = P.map(p => p[1]).concat(steps.map(p => p[1]), Ain.map(p => p[1]));
   let lo = Math.min(...vs), hi = Math.max(...vs); if (hi - lo < 1) { const m = (hi + lo) / 2; lo = m - .5; hi = m + .5; }
   const pad = (hi - lo) * .12; lo -= pad; hi += pad;
-  const x = t => Math.max(0, Math.min(W, (t - from) / (now - from) * W)), y = v => (H - 1) - (v - lo) / (hi - lo) * (H - 2);
+  const x = t => Math.max(0, Math.min(W, (t - from) / (to - from) * W)), y = v => (H - 1) - (v - lo) / (hi - lo) * (H - 2);
   const line = P.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join("");
-  let st = ""; steps.forEach((p, i) => { const nx = i + 1 < steps.length ? steps[i + 1][0] : now; st += `M${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}H${x(nx).toFixed(1)}`; });
+  let st = ""; steps.forEach((p, i) => { const nx = i + 1 < steps.length ? steps[i + 1][0] : to; st += `M${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}H${x(nx).toFixed(1)}`; });
   const last = P.at(-1);
+  const fut = Ain.length ? `M${x(last[0]).toFixed(1)} ${y(last[1]).toFixed(1)}` + Ain.map(p => `L${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join("") : "";
   return `<svg class="spark${o.hot ? " hot" : ""}" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" preserveAspectRatio="none" aria-hidden="true">` +
-    `<path class="sa" d="${line}L${x(last[0]).toFixed(1)} ${H}L${x(P[0][0]).toFixed(1)} ${H}Z"/>${st ? `<path class="sg" d="${st}"/>` : ""}<path class="sl" d="${line}"/></svg>`;
+    `<path class="sa" d="${line}L${x(last[0]).toFixed(1)} ${H}L${x(P[0][0]).toFixed(1)} ${H}Z"/>${st ? `<path class="sg" d="${st}"/>` : ""}<path class="sl" d="${line}"/>` +
+    (fut ? `<path class="sf" d="${fut}"/><path class="sn" d="M${x(now).toFixed(1)} 0V${H}"/>` : "") + `</svg>`;
 }
+
+// Room temperature forecast (idea from ClimateAdvisor), from what each room has learned:
+//   heating: rises at its learned warm-up speed until the target; not heating: loses heat toward outside at its learned
+//   heat-loss rate, and right after heating stops the floor's afterglow keeps it within 0.5 °C for the learned hours.
+// steps: [[t, target]] (the first is the target now); out(t) -> outside °C (corrected forecast). Returns [[t, °C]] every 15 min
+// and `reach`: when each upward step is (about) reached.
+function forecastRoom({ T0, steps, warm = .5, loss = 0, coast = 0, out = () => NaN, hours = 12, t0 = Math.floor(Date.now() / 900e3) * 900e3, heating = false }) {
+  const dt = .25, k = Math.max(0, loss) / 10, S = steps.slice().sort((a, b) => a[0] - b[0]), pts = [], reach = [];
+  let T = T0, lastHeat = heating ? t0 : -Infinity, si = 0, tgt = S[0]?.[1] ?? T0, want = null;
+  for (let i = 1; i <= hours * 4; i++) {
+    const t = t0 + i * 900e3;
+    while (si + 1 < S.length && S[si + 1][0] <= t) { si++; const nt = S[si][1]; if (nt > tgt + .3) want = { from: S[si][0], target: nt }; tgt = nt; }
+    if (si === 0 && S[0]) tgt = S[0][1];
+    const o = out(t);
+    if (T < tgt - .1) { T = Math.min(tgt + .1, T + warm * dt); lastHeat = t; }
+    else if (Number.isFinite(o) && T > o) { let r = k * (T - o); if (coast > 0 && t - lastHeat < coast * 3600e3) r = Math.min(r, .5 / coast); T -= r * dt; }
+    if (want && T >= want.target - .2) { reach.push({ ...want, at: t }); want = null; }
+    pts.push([t, Math.round(T * 100) / 100]);
+  }
+  if (want) reach.push({ ...want, at: null });
+  return { pts, reach };
+}
+// a reading for the corrected outdoor forecast: [[t, raw, corrected], ...] -> out(t)
+const outFn = rows => t => { if (!rows?.length) return NaN; let best = rows[0]; for (const r of rows) if (Math.abs(r[0] - t) < Math.abs(best[0] - t)) best = r; return Math.abs(best[0] - t) < 2 * 3600e3 ? best[2] ?? best[1] : NaN; };
 
 // Daily rhythm: when the heating ran, hour by hour over the last two weeks (darker = more energy).
 // hours: [[epoch ms of the hour, kWh], ...]
@@ -1198,7 +1250,7 @@ const E = {
   night: r => `input_number.stg_night_${r}`, rateR: r => `input_number.stg_rate_${r}`,
   nightOn: "binary_sensor.stg_night", nightEn: "input_boolean.stg_night_enabled", warming: "input_boolean.stg_night_warming",
   air: { kitchen: ["sensor.indoor_stg_humidity", "sensor.indoor_stg_carbon_dioxide"], bathroom: ["sensor.indoor_stg_bedroom_humidity", "sensor.indoor_stg_bedroom_carbon_dioxide"], bedroom: ["sensor.indoor_stg_bedroom_humidity_2", "sensor.indoor_stg_bedroom_carbon_dioxide_2"] },
-  outT: "sensor.indoor_stg_outdoor_stg_temperature",
+  outT: "sensor.indoor_stg_outdoor_stg_temperature", outH: "sensor.indoor_stg_outdoor_stg_humidity", watch: "input_boolean.stg_watch_alerts",
   airT: { kitchen: "sensor.indoor_stg_temperature", bathroom: "sensor.indoor_stg_bedroom_temperature", bedroom: "sensor.indoor_stg_bedroom_temperature_2" },
   bench: "climate.bench_warmer", benchOn: "binary_sensor.stg_bench_heating", bSw: "input_boolean.stg_bench_switch",
   bPlan: "input_boolean.stg_bench_plan", bOnAt: "input_datetime.stg_bench_on", bOffAt: "input_datetime.stg_bench_off", bTemp: "input_number.stg_bench_plan_temp", bRep: "input_select.stg_bench_repeat", benchW: "input_number.stg_bench_power", benchE: "sensor.stg_bench_energy",
@@ -1229,7 +1281,7 @@ const S = (id, state, attributes = {}) => { demo[id] = { entity_id: id, state: S
   S(E.start, new Date(arr - 3 * H).toISOString()); S(E.stop, new Date(dep - H).toISOString());
   S(E.gap, "0.3"); S(E.preheat, "1.6"); S(E.rate, "0.55"); S(E.last, "");
   S(E.away, "5"); S(E.drop, "2"); S(E.boostInc, "2"); S(E.boostDur, "2"); S(E.margin, "1"); S(E.stopBefore, "1"); S(E.boostTimer, "idle");
-  S(E.air.kitchen[0], 61); S(E.air.kitchen[1], 1480); S(E.air.bathroom[0], 58); S(E.air.bathroom[1], 820); S(E.air.bedroom[0], 52); S(E.air.bedroom[1], 760); S(E.outT, 8.4); S(E.airT.kitchen, 20.4); S(E.airT.bathroom, 20.6); S(E.airT.bedroom, 18.4);
+  S(E.air.kitchen[0], 61); S(E.air.kitchen[1], 1480); S(E.air.bathroom[0], 58); S(E.air.bathroom[1], 820); S(E.air.bedroom[0], 52); S(E.air.bedroom[1], 760); S(E.outT, 8.4); S(E.outH, 70); S(E.airT.kitchen, 20.4); S(E.airT.bathroom, 20.6); S(E.airT.bedroom, 18.4);
   S(E.bench, "heat", { current_temperature: 21.5, temperature: 24, hvac_modes: ["off", "heat"], min_temp: 5, max_temp: 40 }); S(E.benchOn, "on"); S(E.bSw, "on"); S(E.benchW, 520); S(E.benchE, 3.2);
   { const a = new Date(); a.setDate(a.getDate() + 1); a.setHours(7, 0, 0, 0); const o = new Date(a); o.setHours(8); S(E.bPlan, "on"); S(E.bOnAt, haDT(a)); S(E.bOffAt, haDT(o)); S(E.bTemp, 25); S(E.bRep, "Once"); }
   S(E.protect, "on"); S(E.stopLearned, "on");
@@ -1255,10 +1307,143 @@ function demoLearn() {
 }
 async function loadLearn() {
   const d = live ? await fetch("api/learn").then(r => r.ok ? r.json() : null).catch(() => null) : demoLearn();
-  if (d) { LEARN = d; renderSettings(); renderHome(); }
+  if (d) { LEARN = d; renderSettings(); renderHome(); renderCheck(); }
 }
 setInterval(() => { if (live) loadLearn(); }, 10 * 60e3);
 const hTxt = h => h == null ? "–" : (Number.isInteger(h * 2) ? (h >= 1 ? Math.floor(h) : "") + (h % 1 ? "½" : "") : h.toFixed(1)) + " h";
+
+/* ---------- outlook: days table, corrected forecast, room forecasts, "Next" and "For you" (ideas from ClimateAdvisor, FreshAirIQ) ---------- */
+let DAYS = null, DAYKWH = null;
+function demoDays2() {
+  const now = Date.now(), H = 3600e3, h0 = Math.floor(now / H) * H, key = d => new Date(d).toISOString().slice(0, 10);
+  return { yesterday: { date: key(now - 864e5), hi: 6.8, lo: -1.2, fcHi: 6, fcLo: -.5, coldMin: 25, heatMin: 640 }, today: { date: key(now), hi: 5.1, lo: -.4, fcHi: 7, fcLo: 0, coldMin: 0, heatMin: 310 },
+    tomorrow: { date: key(now + 864e5), fcHi: 4, fcLo: -3 }, bias: { byHour: Array(24).fill(.6), overall: .6, samples: 140, score: { raw: 1.4, corrected: .6, hours: 160 } },
+    outlook: Array.from({ length: 30 }, (_, i) => { const t = h0 + i * H, h = new Date(t).getHours(), v = 2 + 4 * Math.sin((h - 9) / 24 * 2 * Math.PI); return [t, +v.toFixed(1), +(v + .6).toFixed(1)]; }) };
+}
+async function loadDays() {
+  DAYS = live ? await fetch("api/days").then(r => r.ok ? r.json() : null).catch(() => null) : demoDays2();
+  // heating electricity for yesterday and today (thermostats' hourly meters + bench)
+  const s = new Date(); s.setHours(0, 0, 0, 0); s.setDate(s.getDate() - 1);
+  let hours = null;
+  if (live) { const q = new URLSearchParams({ start: s.toISOString(), end: new Date().toISOString(), pstart: s.toISOString(), bucket: "hour" });
+    const d = await fetch("api/history?" + q).then(r => r.ok ? r.json() : null).catch(() => null);
+    if (d) { hours = []; for (const rows of Object.values(d.rooms || {}).concat([d.bench || []])) for (const [t, v] of rows) if (v != null) hours.push([t, v]); } }
+  else { hours = []; for (let t = +s; t < Date.now(); t += 3600e3) hours.push([t, 1.6]); }
+  if (hours) { const mid = new Date(); mid.setHours(0, 0, 0, 0); DAYKWH = { y: hours.filter(h => h[0] < +mid).reduce((a, h) => a + h[1], 0), t: hours.filter(h => h[0] >= +mid).reduce((a, h) => a + h[1], 0) }; }
+  renderHome(); renderRooms(); renderDays(); renderCheck();
+}
+setInterval(() => { if (["home", "rooms", "insights"].includes(currentTab)) loadDays(); }, 15 * 60e3);
+
+// absolute humidity in g/m³ and the room volumes from the floor plan (2.5 m ceilings assumed)
+const absHum = (T, rh) => 6.112 * Math.exp(17.67 * T / (T + 243.5)) * rh * 2.1674 / (273.15 + T);
+const VOL = (() => { const v = {}; for (const rm of (typeof PLAN !== "undefined" ? PLAN.rooms : [])) { let a = 0; const p = rm.poly; for (let i = 0; i < p.length; i++) { const [x1, y1] = p[i], [x2, y2] = p[(i + 1) % p.length]; a += x1 * y2 - x2 * y1; } v[rm.id] = Math.abs(a) / 2 / (84.6 * 84.6) * 2.5; } return v; })();
+
+// the targets each room will have over the next hours, from the stay, the night times and the away temperature
+function stepsFor(r, x) {
+  const now = Date.now(), cf = x.cf, steps = [[now, typeof x.tgt === "number" ? x.tgt : cf]], until = now + 12 * 3600e3;
+  const add = (t, v) => { if (t > now && t < until && Number.isFinite(v)) steps.push([t, v]); };
+  const planned = st(E.planned) === "on", start = new Date(st(E.start)), stop = new Date(st(E.stop)), away = num(E.away, 6);
+  if (planned) { add(+start, cf); add(+stop, away); }
+  if (st(E.nightEn) === "on" && (st(E.stay) === "on" || planned)) {
+    const at = v => { if (!v) return null; const [h, m] = v.split(":").map(Number), d = new Date(); d.setHours(h, m, 0, 0); if (+d < now) d.setDate(d.getDate() + 1); return +d; };
+    const ns = at(st(E.nStart)), ws = st(E.wakeStart) ? Date.parse(st(E.wakeStart)) : at(st(E.nEnd));
+    const inStay = t => st(E.stay) === "on" ? !(planned && t >= +stop) : planned && t >= +start && t < +stop;
+    if (ns && inStay(ns)) add(ns, num(E.night(r), cf - 1.5));
+    if (ws && inStay(ws)) add(ws, cf);
+  }
+  return steps;
+}
+function forecastFor(r) {
+  const x = room(r); if (typeof x.cur !== "number" || !x.online) return null;
+  const L = LEARN?.rooms?.[r] || {};
+  return forecastRoom({ T0: x.cur, steps: stepsFor(r, x), warm: num(E.rateR(r), num(E.rate, .5)) || .5, loss: L.loss ?? 0, coast: L.coast ?? 0,
+    out: outFn(DAYS?.outlook), heating: x.heating, hours: 12 });
+}
+
+// the next thing the heating does
+function nextStep() {
+  const now = Date.now(), c = [], m = st(E.mode), a = st(E.auto) || "", planned = st(E.planned) === "on";
+  const start = new Date(st(E.start)), stop = new Date(st(E.stop)), arr = parseHA(st(E.arr)), away = num(E.away, 6);
+  const day = d => { const t = new Date(d), td = new Date(); td.setHours(0, 0, 0, 0); const diff = Math.round((new Date(t).setHours(0, 0, 0, 0) - +td) / 864e5);
+    return diff === 0 ? fmtT(t) : diff === 1 ? `tomorrow ${fmtT(t)}` : `${t.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${fmtT(t)}`; };
+  // slowest room's forecast to be warm after a given time
+  const warmAt = after => { let last = null, name = ""; for (const [r] of ROOMS) { const f = forecastFor(r), hit = f?.reach.find(x => x.from >= after - 60e3); if (hit && (!last || (hit.at ?? Infinity) > last)) { last = hit.at ?? Infinity; name = RN[r].toLowerCase(); } } return last == null ? "" : last === Infinity ? " · not warm within 12 h" : ` · ${name} warm about ${fmtT(new Date(last))}`; };
+  if (m === "Boost") { const f = attr(E.boostTimer, "finishes_at"); if (f) c.push([Date.parse(f), `Boost ends ${fmtT(new Date(f))}`]); }
+  if (m === "Auto" || m === "Away") {
+    if (planned && +start > now) c.push([+start, `Heating starts ${day(start)} for your arrival${arr ? ` ${day(arr)}` : ""}`]);
+    if (a === "Pre-heating" && arr && +arr > now) c.push([+arr, `Comfortable by ${day(arr)}${warmAt(+start)}`]);
+    if (planned && +stop > now) c.push([+stop, `Down to ${away} °C ${day(stop)}`]);
+    const ws = st(E.wakeStart) ? Date.parse(st(E.wakeStart)) : NaN;
+    if (st(E.nightEn) === "on" && st(E.stay) === "on") {
+      const ns = (() => { const v = st(E.nStart); if (!v) return NaN; const [h, mi] = v.split(":").map(Number), d = new Date(); d.setHours(h, mi, 0, 0); if (+d < now) d.setDate(d.getDate() + 1); return +d; })();
+      if (Number.isFinite(ns)) c.push([ns, `Night temperatures from ${fmtT(new Date(ns))}`]);
+      if (Number.isFinite(ws) && ws > now) c.push([ws, `Warm-up from ${fmtT(new Date(ws))} · warm by ${hm(st(E.nEnd))}${warmAt(ws)}`]);
+    }
+  }
+  c.sort((p, q) => p[0] - q[0]);
+  if (c.length) return c[0][1];
+  if (m === "Auto" && !planned) return `Holding ${away} °C · nothing planned`;
+  return "";
+}
+
+// what you could do now: air a stuffy or damp room, or nothing
+function forYou() {
+  const rs = ROOMS.map(([r]) => room(r)), home = st(E.stay) === "on" || ["Home", "Eco", "Boost"].includes(st(E.mode));
+  const stuffy = rs.filter(x => Number.isFinite(x.co2) && x.co2 >= co2Limit());
+  const icon = { air: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/></svg>',
+    drop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/></svg>',
+    shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+    ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></svg>',
+    warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3 2 20h20zM12 10v4M12 17h.01"/></svg>' };
+  const list = a => a.length > 1 ? a.slice(0, -1).join(", ") + " and " + a.at(-1) : a[0];
+  const alerts = LEARN?.watch?.open || [];
+  if (alerts.length) return { act: true, tone: "risk", icon: icon.warn, b: "Worth a look", em: alerts[0] + (alerts.length > 1 ? ` (+${alerts.length - 1} more)` : ""), go: "settings" };
+  if (stuffy.length) return { act: true, icon: icon.air, b: `Air the ${list(stuffy.map(x => x.name.toLowerCase()))}`, em: `CO₂ ${stuffy.map(x => Math.round(x.co2).toLocaleString("en-GB")).join(" · ")} ppm · a few minutes with the window open` };
+  const guard = LEARN?.care?.raised ? LEARN.care : null;
+  if (guard) return { icon: icon.shield, b: "Mould protection is on", em: `Kept at ${t1(guard.to)} °C instead of ${t1(guard.base)} °C until the walls are dry${guard.since ? ` · since ${fmtD(new Date(guard.since))}` : ""}` };
+  // airing for humidity: only worth it when the outside air holds clearly less water
+  const tO = num(E.outT, NaN), hO = num(E.outH, NaN), ahO = Number.isFinite(tO) && Number.isFinite(hO) ? absHum(tO, hO) : NaN;
+  const wet = rs.filter(x => Number.isFinite(x.hum) && (x.hum >= 62 || x.dampLvl === "risk" || x.dampLvl === "watch")).map(x => {
+    const T = Number.isFinite(num(E.airT[x.r], NaN)) ? num(E.airT[x.r]) : x.cur, ah = absHum(T, x.hum), v = VOL[x.r] || 30;
+    return { x, T, gain: ah - ahO, ml: Math.round(v * .6 * (ah - ahO) / 10) * 10, kwh: v * .6 * 1.2 * 1.005 * Math.max(0, T - tO) / 3600 }; }).sort((a, b) => b.gain - a.gain);
+  if (home && wet.length && Number.isFinite(ahO)) {
+    const w = wet[0];
+    if (w.gain >= 1.5) return { act: true, icon: icon.air, b: `Air the ${w.x.name.toLowerCase()} for 5 minutes`, em: `${Math.round(w.x.hum)} % humid; the outside air is drier, so it takes out about ${w.ml} ml of water · costs about ${w.kwh < .05 ? "0.05" : w.kwh.toFixed(2)} kWh of heat` };
+    return { icon: icon.drop, b: `The ${w.x.name.toLowerCase()} is humid (${Math.round(w.x.hum)} %)`, em: "But the outside air is just as damp right now, so airing wouldn't help. Keep it warm instead." };
+  }
+  const damp = rs.filter(x => x.dampLvl === "risk" || x.dampLvl === "watch").sort((a, b) => b.damp.rh - a.damp.rh);
+  if (damp.length) { const w = damp[0]; return { act: true, tone: w.dampLvl === "risk" ? "risk" : "", icon: icon.drop, b: `${w.dampLvl === "risk" ? "Mould risk" : "Damp walls"} in the ${list(damp.map(x => x.name.toLowerCase()))}`, em: `Wall about ${Math.round(w.damp.rh)}% humid · ${home ? "air briefly and keep it warm" : "a warmer away temperature helps"}` }; }
+  return { calm: true, icon: icon.ok, b: "Nothing to do", em: home ? "The air is fine; windows can stay closed." : "The flat looks after itself while you're away." };
+}
+
+// Insights: yesterday, today, tomorrow
+function renderDays() {
+  const el = $("#days-card"); if (!el) return;
+  if (!DAYS) { el.innerHTML = `<div class="card-h"><h2>Days</h2></div><p class="note">Loading…</p>`; return; }
+  const { yesterday: y, today: t, tomorrow: m } = DAYS, p = price();
+  const tt = v => v == null ? "–" : `${Math.round(v)}°`, pair = (hi, lo) => hi == null ? "–" : `${tt(hi)} / ${tt(lo)}`;
+  const mins = v => !v ? "none" : v < 60 ? `${v} min` : `${t1(v / 60)} h`;
+  const stay = st(E.planned) === "on" ? (() => { const a = parseHA(st(E.arr)), dp = parseHA(st(E.dep)), d0 = new Date(m.date + "T12:00"); return a && dp && d0 >= new Date(a.toDateString()) && d0 <= dp ? "Stay" : "Away"; })() : "Away";
+  const kw = v => v == null ? "–" : `${t1(v)} kWh`, eu = v => v == null || !p ? "" : `<em>€ ${(v * p).toFixed(2)}</em>`;
+  el.innerHTML = `<div class="card-h"><h2>Days</h2><span class="small muted">forecast in grey</span></div>
+    <div class="dt"><span></span><b>Yesterday</b><b>Today</b><b>Tomorrow</b>
+      <span>Outside high / low</span><span class="num">${pair(y.hi, y.lo)}<em>${pair(y.fcHi, y.fcLo)}</em></span><span class="num">${pair(t.hi, t.lo)}<em>${pair(t.fcHi, t.fcLo)}</em></span><span class="num"><em class="only">${pair(m.fcHi, m.fcLo)}</em></span>
+      <span>Heating</span><span class="num">${kw(DAYKWH?.y)}${eu(DAYKWH?.y)}</span><span class="num">${kw(DAYKWH?.t)}${eu(DAYKWH?.t)}</span><span>${stay === "Stay" ? "Stay" : `Away, ${num(E.away, 6)} °C`}</span>
+      <span>Rooms too cold</span><span class="num">${mins(y.coldMin)}</span><span class="num">${mins(t.coldMin)}</span><span></span>
+    </div><p class="note" style="margin-top:8px">Heating from the thermostats' meters. "Too cold" adds up the minutes rooms were more than 0.5 °C under their temperature during a stay.</p>`;
+}
+// Insights: how well it is working
+function renderCheck() {
+  const el = $("#check-card"); if (!el) return;
+  const w = LEARN?.warm, f = LEARN?.forecast || DAYS?.bias, wa = LEARN?.watch;
+  const late = w?.all ? Object.entries(w.rooms || {}).filter(([, v]) => v && v.checks > v.onTime).sort((a, b) => (b[1].checks - b[1].onTime) - (a[1].checks - a[1].onTime)) : [];
+  const rows = [
+    ["Warm on time", w?.all ? `<b class="num">${w.all.onTime} of ${w.all.checks}</b> room checks at arrivals and mornings${late.length ? `; late: ${late.slice(0, 2).map(([r, v]) => `${RN[r].toLowerCase()} (${v.checks - v.onTime}×, about ${v.lateAvg} min)`).join(", ")}` : ""}` : "First check at your next arrival or morning warm-up."],
+    ["Weather forecast", f?.score ? `Off by <b class="num">${t1(f.score.raw)}°</b> on average; corrected with your outdoor sensor <b class="num">${t1(f.score.corrected)}°</b>` : f?.overall != null ? `Your outdoor sensor reads ${f.overall > 0 ? "warmer" : "cooler"} than the forecast by about ${t1(Math.abs(f.overall))}°; scoring after a week.` : "Learning how far the forecast is off from your outdoor sensor (a few days)."],
+    ["Alerts", wa ? (wa.on ? (wa.open?.length ? `<span style="color:var(--warn)">${esc(wa.open[0])}</span>` : "On · nothing to report") : "Off (Settings)") : "–"],
+  ];
+  el.innerHTML = `<div class="card-h"><h2>How it's doing</h2></div><div class="ck">${rows.map(([k, v]) => `<div><span>${k}</span><p>${v}</p></div>`).join("")}</div>`;
+}
 
 /* ---------- last 6 hours per room, for the trend lines ---------- */
 let RECENT = null;
@@ -1547,16 +1732,11 @@ function renderHome() {
   $("#h-rooms").innerHTML = SHORT.map(([r, n]) => { const x = room(r), bad = Number.isFinite(x.co2) && x.co2 >= co2Limit();
     return `<button data-room="${r}" aria-label="${x.name} ${typeof x.cur === "number" ? t1(x.cur) + " degrees" : ""}, ${x.text}"><span>${n}</span><b class="num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}</b><i class="${bad ? "air" : x.state}"></i></button>`; }).join("");
   { const b = bench(); $("#h-bench").innerHTML = `<button data-go="bench" class="bench-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h18M5 13V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 13v6M20 13v6M4 17h16"/></svg><span class="bn">Bench warmer<em>${b.on ? `${b.text} · set to ${t1(b.tgt ?? 0)}°` : (() => { const P = benchPlan(); return P.on && P.valid ? `Timer · ${P.when}` : b.text; })()}</em></span><b class="num">${typeof b.cur === "number" ? t1(b.cur) + "°" : "–"}</b><i class="${b.state}"></i><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>`; }
-  const stuffy = ROOMS.map(([r]) => room(r)).filter(x => Number.isFinite(x.co2) && x.co2 >= co2Limit());
-  const damp = ROOMS.map(([r]) => room(r)).filter(x => x.dampLvl === "risk" || x.dampLvl === "watch").sort((a, b) => b.damp.rh - a.damp.rh);
-  const an = $("#h-air"); an.hidden = !stuffy.length && !damp.length; an.classList.toggle("risk", !stuffy.length && damp[0]?.dampLvl === "risk");
-  const guard = LEARN?.care?.raised ? LEARN.care : null;
-  if (!stuffy.length && guard) { an.hidden = false; an.classList.remove("risk");
-    an.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Mould protection is on</b><br><em>Kept at ${t1(guard.to)} °C instead of ${t1(guard.base)} °C until the walls are dry${guard.since ? ` · since ${fmtD(new Date(guard.since))}` : ""}</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>`; }
-  else if (!stuffy.length && damp.length) { const w = damp[0], away = st(E.stay) !== "on";
-    an.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/></svg><span><b>${w.dampLvl === "risk" ? "Mould risk" : "Damp walls"} in the ${damp.map(x => x.name.toLowerCase()).join(" and ")}</b><br><em>Wall about ${Math.round(w.damp.rh)}% humid · ${away ? "a warmer away temperature helps" : "air briefly and keep it warm"}</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>`; }
-  if (stuffy.length) { const names = stuffy.map(x => x.name.toLowerCase()), list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names.at(-1) : names[0];
-    an.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/></svg><span><b>Time to air the ${list}</b><br><em>CO₂ ${stuffy.map(x => Math.round(x.co2).toLocaleString("en-GB")).join(" · ")} ppm · a few minutes with the window open</em></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>`; }
+  const fy = forYou(), an = $("#h-air");
+  an.hidden = false; an.className = `air-note${fy.calm ? " calm" : ""}${fy.tone === "risk" ? " risk" : ""}`;
+  if (fy.act) an.dataset.go = fy.go || "rooms"; else delete an.dataset.go;
+  an.innerHTML = `${fy.icon}<span><small>For you</small><b>${fy.b}</b><br><em>${fy.em}</em></span>${fy.act ? '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>' : ""}`;
+  const nx = nextStep(), ne = $("#h-next"); ne.hidden = !nx; ne.innerHTML = nx ? `<span>Next</span>${nx}` : "";
   const dd = (live ? (costData?.days || []) : demoDays()).filter(d => typeof d.eur === "number" && d.eur > 0);
   if (dd.length) { const d = dd[dd.length - 1], dt = new Date(d.start), yd = new Date(); yd.setDate(yd.getDate() - 1);
     const lbl = dt.toDateString() === yd.toDateString() ? "yesterday" : dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
@@ -1613,8 +1793,8 @@ function renderRooms() {
   $("#rooms").innerHTML = ROOMS.map(([r]) => {
     const x = room(r);
     const air = airLine(x);
-    const sp = RECENT ? spark(RECENT.rooms?.[r]?.temp, RECENT.rooms?.[r]?.target, { hot: x.heating }) : "";
-    return `<button class="room${sp ? " has-spark" : ""}" data-room="${r}"><b>${x.name}</b><span class="meta"><span class="st"><i class="dot ${x.state}"></i>${x.text}${x.online && !x.text.includes("warm by") ? `<span class="set"><span class="sep"> · </span>${t1(x.tgt)}°</span>` : ""}</span>${air}</span>${sp ? `<span class="spark-w">${sp}<small>6 h</small></span>` : ""}<span class="t num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}<small>now</small></span></button>`;
+    const fc = forecastFor(r), sp = RECENT ? spark(RECENT.rooms?.[r]?.temp, RECENT.rooms?.[r]?.target, { hot: x.heating, ahead: fc?.pts, aheadTgt: fc ? stepsFor(r, x).slice(1) : null }) : "";
+    return `<button class="room${sp ? " has-spark" : ""}" data-room="${r}"><b>${x.name}</b><span class="meta"><span class="st"><i class="dot ${x.state}"></i>${x.text}${x.online && !x.text.includes("warm by") ? `<span class="set"><span class="sep"> · </span>${t1(x.tgt)}°</span>` : ""}</span>${air}</span>${sp ? `<span class="spark-w">${sp}<small>${fc ? "6 h · next 6 h" : "6 h"}</small></span>` : ""}<span class="t num">${typeof x.cur === "number" ? t1(x.cur) + "°" : "–"}<small>now</small></span></button>`;
   }).join("");
 }
 
@@ -1628,6 +1808,8 @@ function renderSheet() {
     <div class="row" style="align-items:flex-end"><div class="big num">${typeof x.cur === "number" ? t1(x.cur) : "–"}<span style="font-size:.4em;color:var(--ink-3)">°C</span></div><div class="small muted" style="text-align:right">floor ${t1(num(E.floor(x.r)))}°<br>comfort ${t1(x.cf)}°</div></div>
     <div class="row"><div><b style="font-weight:500">Set to</b><p class="note">For now. Auto may change it with the next situation.</p></div>
       <div class="stepper"><button data-step="-0.5" aria-label="Cooler">−</button><output class="num">${t1(x.tgt ?? 0)}°</output><button data-step="0.5" aria-label="Warmer">+</button></div></div>
+    ${(() => { const f = forecastFor(x.r); if (!f) return ""; const at3 = f.pts[11], rc = f.reach[0];
+      return `<p class="fc-line"><span>Forecast</span>${t1(at3[1])}° at ${fmtT(new Date(at3[0]))}${rc ? (rc.at ? ` · ${t1(rc.target)}° reached about ${fmtT(new Date(rc.at))}` : ` · not at ${t1(rc.target)}° within 12 h`) : ""}</p>`; })()}
     <dl class="kv"><dt>Thermostat</dt><dd>${{ MANUAL: "Manual", VACATION: "Lowered", PAUSE: "Frost-safe (lowered)", SCHEDULE: "Schedule", OVERRIDE: "Override" }[x.preset] || x.preset || "–"}</dd>
       <dt>Wi-Fi signal</dt><dd class="num" style="color:${num(E.wifi(x.r)) < -70 ? "var(--warn)" : "inherit"}">${num(E.wifi(x.r))} dBm${num(E.wifi(x.r)) < -70 ? " · weak" : ""}</dd>
       ${Number.isFinite(x.hum) ? `<dt>Humidity</dt><dd class="num">${Math.round(x.hum)} %</dd>` : ""}
@@ -1704,6 +1886,7 @@ function renderSettings() {
     const lock = id === E.stopBefore && learnedStop;
     return `<div class="setting"><div><b>${l}</b><p>${d}</p></div><output class="num" id="o${i}">${num(id)} ${u}</output><input type="range" id="s${i}" aria-label="${l}" min="${mi}" max="${ma}" step="${s}" value="${num(id)}" data-set="${i}" ${lock ? "disabled" : ""}></div>`; }).join("") +
     `<div class="setting"><div><b>Learned stop time</b><p>Stop before departure follows how long the floors keep the flat warm.</p></div><label class="switch"><input type="checkbox" id="stop-learned" aria-label="Learned stop time" ${learnedStop ? "checked" : ""}><span></span></label></div>` +
+    `<div class="setting"><div><b>Alerts</b><p>A push to the CO₂ alert devices when a thermostat or sensor stops reporting, a room nears frost, or a room heats for hours without getting warmer.</p></div><label class="switch"><input type="checkbox" id="watch-on" aria-label="Alerts" ${st(E.watch) !== "off" ? "checked" : ""}><span></span></label></div>` +
     `<div class="setting"><div><b>Mould protection</b><p>While you're away: if a wall gets damp (above 80 %), the flat is kept 2 °C warmer until it's dry, with a push to the CO₂ alert devices.${care?.top ? ` Now: walls up to ${care.top.rh} % (${RN[care.top.room]?.toLowerCase() || ""}).` : ""}</p></div><label class="switch"><input type="checkbox" id="protect" aria-label="Mould protection" ${st(E.protect) !== "off" ? "checked" : ""}><span></span></label></div>` +
     `<div class="setting"><div><b>Electricity price</b><p>From your income and expense app.</p></div><output class="num">${price() ? price().toFixed(4) : "–"} €/kWh</output></div>`;
   const stp = (r, n, kind, v) => `<div class="stepper sm"><button aria-label="${n} ${kind} cooler" data-${kind === "day" ? "comfort" : "night"}="-0.5" data-room="${r}">−</button><output class="num">${t1(v)}°</output><button aria-label="${n} ${kind} warmer" data-${kind === "day" ? "comfort" : "night"}="0.5" data-room="${r}">+</button></div>`;
@@ -1871,6 +2054,7 @@ function go(tab) {
   lsSet("tab", tab); window.scrollTo(0, 0); render();
   if (tab === "insights") { hxLoad(); rhLoad(); }
   if (tab === "rooms") loadRecent();
+  if (["home", "rooms", "insights"].includes(tab) && (!DAYS || tab === "insights")) loadDays();
   if (tab === "settings" || tab === "home") loadLearn();
   if (tab === "stay") loadStays();
   if (tab === "bench") { BX.data = null; BT.dirty = false; renderBench(); }
@@ -1940,6 +2124,7 @@ document.addEventListener("change", async e => {
   if (el.id === "st-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.planned }); toast(el.checked ? "Stay planned" : "Stay switched off"); }
   if (el.id === "bt-on") { if (el.checked) { el.checked = false; return $("#bt-save").click(); } await call("input_boolean", "turn_off", { entity_id: E.bPlan }); BT.dirty = false; el.blur(); renderBench(); return toast("Timer off"); }
   if (el.id === "bt-start" || el.id === "bt-end") BT.dirty = true;
+  if (el.id === "watch-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.watch }); toast(el.checked ? "Alerts on" : "Alerts off"); }
   if (el.id === "protect") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.protect }); toast(el.checked ? "Mould protection on" : "Mould protection off"); }
   if (el.id === "stop-learned") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.stopLearned }); toast(el.checked ? "Stop time follows the floors" : "Stop time: your setting"); }
   if (el.id === "co2-on") { await call("input_boolean", el.checked ? "turn_on" : "turn_off", { entity_id: E.co2On }); toast(el.checked ? "CO₂ alert on" : "CO₂ alert off"); }

@@ -17,7 +17,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { startUpdater } from "./updater.js";
-import { onGrid, coastEvents, lossSamples, summarise, merge } from "./learn.js";
+import { onGrid, coastEvents, lossSamples, summarise, merge, forecastBias, correct, warmChecksAt, warmSummary } from "./learn.js";
 
 const BRIDGE = (process.env.BRIDGE_URL || "http://192.168.178.149:8098").replace(/\/+$/, "");
 let PASSWORD = process.env.BRIDGE_PASSWORD || "";
@@ -243,6 +243,7 @@ async function learnRun() {
       const T = onGrid(d.t.map((t, j) => [t * 1000, z.temp?.[j]]), from, to, 2 * 3600e3), G = onGrid(d.t.map((t, j) => [t * 1000, z.target?.[j]]), from, to, 2 * 3600e3);
       const k = (L.rooms[slug] ||= { ev: [], ls: [] });
       k.ev = merge(k.ev, coastEvents(T, G, from)); k.ls = merge(k.ls, lossSamples(T, G, O, from));
+      k.warm = merge(k.warm, warmChecksAt(T, G, from, planDeadlines(slug, from, to)), 90);
     }
     L.ran = Date.now();
     await mkdir(path.dirname(LEARN), { recursive: true }); await writeFile(LEARN, JSON.stringify(L));
@@ -252,7 +253,121 @@ async function learnRun() {
 }
 async function learnInfo() {
   if (!L) { try { L = JSON.parse(await readFile(LEARN, "utf8")); } catch { L = { rooms: {} }; } }
-  return { rooms: Object.fromEntries(Object.entries(L.rooms || {}).map(([s, k]) => [s, summarise(k.ev || [], k.ls || [])])), updated: L.ran || null, error: learnErr || null };
+  const ws = Object.fromEntries(Object.entries(L.rooms || {}).map(([s, k]) => [s, warmSummary(k.warm || [])]));
+  return { rooms: Object.fromEntries(Object.entries(L.rooms || {}).map(([s, k]) => [s, summarise(k.ev || [], k.ls || [])])), updated: L.ran || null, error: learnErr || null,
+    forecast: forecastBias(L.fcS), warm: { all: warmSummary(Object.values(L.rooms || {}).flatMap(k => k.warm || [])), rooms: ws },
+    watch: { on: L.watchOn !== false, open: Object.values(L.watch || {}).filter(w => w.sent).map(w => w.text), push: energyOn() } };
+}
+
+// ---------------------------------------------------------------- forecast check, warm on time, days, watch (ideas from ClimateAdvisor)
+// Read-only towards the heating: these only watch and report. Alerts go to Mike's iPhone and iPad through the
+// Vienna Home Assistant (notify), and can be switched off in the app (Settings > Alerts).
+const PUSH_TO = (process.env.WIEN_PUSH || "mhh17,mike_m4").split(",").map(s => s.trim()).filter(Boolean);
+const DAYK = ["SO", "MO", "DI", "MI", "DO", "FR", "SA"];
+const dayKey = d => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
+const hhmm = t => new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+let fcCache = null, fcAt = 0;
+async function hourlyForecast() {
+  if (fcCache && Date.now() - fcAt < 30 * 60e3) return fcCache;
+  const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m&daily=temperature_2m_max,temperature_2m_min&forecast_days=3&timezone=UTC`, { signal: AbortSignal.timeout(20000) });
+  if (!r.ok) throw new Error(`weather service HTTP ${r.status}`);
+  const j = await r.json();
+  fcCache = { hourly: (j.hourly?.time || []).map((t, i) => [Date.parse(t + "Z"), j.hourly.temperature_2m[i]]).filter(x => typeof x[1] === "number"),
+              daily: (j.daily?.time || []).map((t, i) => ({ date: t, hi: j.daily.temperature_2m_max[i], lo: j.daily.temperature_2m_min[i] })) };
+  fcAt = Date.now();
+  return fcCache;
+}
+async function loadL() { if (!L) { try { L = JSON.parse(await readFile(LEARN, "utf8")); } catch { L = {}; } if (L.v !== 2) { L.rooms = {}; L.v = 2; } L.rooms ||= {}; } return L; }
+const saveL = async () => { await mkdir(path.dirname(LEARN), { recursive: true }); await writeFile(LEARN, JSON.stringify(L)); };
+
+// every 5 minutes: forecast for 3–4 h ahead vs what the Tempest reads, today's high and low, cold room-minutes
+async function hourTick() {
+  await loadL();
+  const now = Date.now(), H = 3600e3, hour = Math.floor(now / H) * H;
+  L.fcPend ||= {}; L.act ||= {}; L.fcS ||= []; L.days ||= {};
+  const out = data.outside && now / 1000 - data.outside.at < 1800 ? data.outside.temp : NaN;
+  if (Number.isFinite(out)) { const a = (L.act[hour] ||= { s: 0, n: 0 }); a.s += out; a.n++; }
+  let fc = null; try { fc = await hourlyForecast(); } catch { }
+  for (const [t, v] of fc?.hourly || []) { const lead = t - now; if (lead >= 3 * H && lead < 4 * H && !(t in L.fcPend)) L.fcPend[t] = v; }
+  for (const k of Object.keys(L.fcPend)) { const t = Number(k), a = L.act[t];
+    if (t + H < now) { if (a && a.n >= 6 && data.outside?.source === "Tempest") L.fcS.push({ t, fc: L.fcPend[k], act: Math.round(a.s / a.n * 10) / 10 }); delete L.fcPend[k]; } }
+  for (const k of Object.keys(L.act)) if (Number(k) < now - 2 * 864e5) delete L.act[k];
+  L.fcS = L.fcS.filter(x => x.t > now - 60 * 864e5);
+  const d = (L.days[dayKey(now)] ||= {});
+  if (Number.isFinite(out)) { d.hi = Math.max(d.hi ?? -99, out); d.lo = Math.min(d.lo ?? 99, out); }
+  const td = fc?.daily?.find(x => x.date === dayKey(now));
+  if (d.fcHi == null && td && new Date().getHours() >= 6) { d.fcHi = td.hi; d.fcLo = td.lo; }
+  // room-minutes more than 0.5 °C under target (heated rooms with a real target)
+  for (const [slug, f] of Object.entries(data.state?.functions || {})) {
+    if (f.disabled || f.plausible === false || typeof f.temperature !== "number" || typeof f.day !== "number" || f.day < 15) continue;
+    if (f.temperature < f.day - .5) d.cold = (d.cold || 0) + 5;
+  }
+  for (const k of Object.keys(L.days)) if (k < dayKey(now - 40 * 864e5)) delete L.days[k];
+  await saveL().catch(() => {});
+}
+
+// warm on time: from the bridge history and the weekly plans, was each room within 0.5 °C at the plan time
+function planDeadlines(slug, from, to) {
+  const rules = (data.schedule?.zones?.[slug]?.rules || []).slice().sort((a, b) => a.time.localeCompare(b.time)), out = [];
+  if (!rules.length) return out;
+  for (let day = new Date(from); +day <= to; day.setDate(day.getDate() + 1)) {
+    const k = DAYK[day.getDay()], today = rules.filter(r => r.days.includes(k));
+    today.forEach((r, i) => {
+      const prev = i ? today[i - 1] : rules.filter(x => x.days.includes(DAYK[(day.getDay() + 6) % 7])).at(-1);
+      if (!prev || r.temp < prev.temp + 1) return;
+      const [h, m] = r.time.split(":").map(Number), t = new Date(day); t.setHours(h, m, 0, 0);
+      if (+t >= from && +t <= to) out.push({ t: +t, target: r.temp });
+    });
+  }
+  return out;
+}
+
+// self-watch: each problem pushes once after a while, and once more when it's over
+async function notify(text, important) {
+  if (!energyOn()) return;
+  for (const dev of PUSH_TO) {
+    await fetch(`${HA_URL}/api/services/notify/mobile_app_${dev}`, { method: "POST", headers: { Authorization: `Bearer ${HA_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Vienna · heating", message: text, data: { group: "wien-watch", push: { "interruption-level": important ? "active" : "passive" } } }), signal: AbortSignal.timeout(15000) })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); }).catch(e => console.error(`Push ${dev}: ${e.message}`));
+  }
+}
+let downSince = null;
+async function watchTick() {
+  await loadL();
+  const now = Date.now(); L.watch ||= {}; L.heatRun ||= {};
+  const on = L.watchOn !== false;
+  let dirty = false;
+  const check = async (key, bad, after, text, back) => {
+    const w = L.watch[key];
+    if (bad) { if (!w) { L.watch[key] = { since: now, text: text(now) }; dirty = true; }
+      else if (!w.sent && now - w.since >= after) { w.sent = now; w.text = text(w.since); dirty = true; if (on) await notify(w.text, true); } }
+    else if (w) { if (w.sent && on && back) await notify(back); delete L.watch[key]; dirty = true; }
+  };
+  if (!data.connected) downSince ||= now; else downSince = null;
+  await check("bridge", !data.connected && !!PASSWORD, 30 * 60e3, since => `Wien Wärme can't reach the heating bridge since ${hhmm(since)}. The heating keeps running on its own plans.`, "Wien Wärme is connected to the heating bridge again.");
+  if (data.connected) for (const [slug, f] of Object.entries(data.state?.functions || {})) {
+    const n = (data.house?.functions?.[slug]?.room || slug).toLowerCase().replace("oli's room", "Oli's room"), t = f.temperature;
+    await check(`nodata-${slug}`, f.plausible === false || typeof t !== "number", 60 * 60e3, since => `The ${n} hasn't sent a temperature since ${hhmm(since)}.`, `The ${n} is reporting again.`);
+    if (typeof t !== "number") continue;
+    await check(`frost-${slug}`, t <= 5, 10 * 60e3, () => `The ${n} is down to ${t} °C. Frost risk: worth checking the heating.`, `The ${n} is back above 5 °C.`);
+    // target clearly above the room for 4 hours without it getting warmer: the heat isn't arriving
+    const hk = slug, want = !f.disabled && typeof f.day === "number" && f.day >= t + 1;
+    if (want) { const s = (L.heatRun[hk] ||= { since: now, t0: t }); s.max = Math.max(s.max ?? t, t); } else if (L.heatRun[hk]) { delete L.heatRun[hk]; dirty = true; }
+    const hs = L.heatRun[hk];
+    await check(`stuck-${slug}`, !!hs && now - hs.since >= 4 * 3600e3 && hs.max - hs.t0 < .3, 0, () => `The ${n} should be at ${f.day} °C but has stayed at ${t} °C for 4 hours. The heat pump or its circuit may need a look.`, `The ${n} is warming up again.`);
+  }
+  if (dirty) await saveL().catch(() => {});
+}
+
+async function daysInfo() {
+  await loadL();
+  const now = Date.now(), bias = forecastBias(L.fcS); let fc = null; try { fc = await hourlyForecast(); } catch { }
+  const row = k => { const d = L.days?.[k] || {}; return { date: k, hi: d.hi ?? null, lo: d.lo ?? null, fcHi: d.fcHi ?? null, fcLo: d.fcLo ?? null, coldMin: d.cold ?? 0 }; };
+  const today = row(dayKey(now)), td = fc?.daily?.find(x => x.date === dayKey(now)), tm = fc?.daily?.find(x => x.date === dayKey(now + 864e5));
+  today.fcHi ??= td?.hi ?? null; today.fcLo ??= td?.lo ?? null;
+  const r1 = v => Math.round(v * 10) / 10;
+  return { yesterday: row(dayKey(now - 864e5)), today, tomorrow: { date: dayKey(now + 864e5), fcHi: tm?.hi ?? null, fcLo: tm?.lo ?? null },
+    outlook: (fc?.hourly || []).filter(([t]) => t >= now - 3600e3 && t <= now + 36 * 3600e3).map(([t, v]) => [t, v, r1(correct(v, t, bias))]), bias };
 }
 
 const every = (what, ms) => { poll(what); setInterval(() => poll(what), ms); };
@@ -282,6 +397,8 @@ async function start() {
   energySync(); setInterval(energySync, 15 * 60e3);
   setInterval(() => poll("house"), 3600e3);
   setTimeout(learnRun, 2 * 60e3);
+  setTimeout(() => hourTick().catch(() => {}), 30e3); setInterval(() => hourTick().catch(e => console.error("Forecast check:", e.message)), 5 * 60e3);
+  setInterval(() => watchTick().catch(e => console.error("Watch:", e.message)), 60e3);
   setInterval(() => { if (new Date().getHours() === 4 && Date.now() - (L?.ran || 0) > 20 * 3600e3) learnRun(); }, 10 * 60e3);
 }
 
@@ -331,6 +448,15 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (url.pathname === "/api/learn") return json(res, 200, await learnInfo());
+    if (url.pathname === "/api/days") return json(res, 200, await daysInfo());
+    if (url.pathname === "/api/watch" && req.method === "POST") {
+      let body = ""; for await (const chunk of req) { body += chunk; if (body.length > 1024) return json(res, 413, { error: "Request too large" }); }
+      let b; try { b = JSON.parse(body); } catch { return json(res, 400, { error: "Invalid request" }); }
+      if (!b || typeof b.on !== "boolean" || Object.keys(b).length !== 1) return json(res, 400, { error: "Invalid request" });
+      await loadL(); L.watchOn = b.on; await saveL();
+      console.log(`${who(req) || "local"}: alerts ${b.on ? "on" : "off"}`);
+      return json(res, 200, { ok: true, on: b.on });
+    }
     if (url.pathname === "/api/energy") {
       const d = Number(url.searchParams.get("days"));
       if (!isNum(d, 0.25, 400)) return json(res, 400, { error: "Bad period" });

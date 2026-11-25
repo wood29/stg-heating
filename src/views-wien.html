@@ -7,6 +7,8 @@
             <div class="status"><i id="h-dot"></i><span id="h-status">–</span></div>
             <p class="sub" id="h-sub"></p>
             <button class="air-note" id="h-alert" data-go="settings" hidden></button>
+            <p class="next" id="h-next" hidden></p>
+            <button class="air-note" id="h-air"></button>
             <div class="facts" id="h-facts"></div>
           </div>
           <div style="grid-area:strip" class="strip-wrap"><div class="card strip many" id="h-rooms" aria-label="Room temperatures"></div></div>
@@ -44,6 +46,7 @@
     <!-- INSIGHTS -->
     <section class="view" id="v-insights" hidden aria-label="Insights">
       <div class="page-h"><h1>Insights</h1></div>
+      <div class="g-two"><div class="card" id="days-card"></div><div class="card" id="check-card"></div></div>
       <div class="hx-bar">
         <div class="seg seg4" role="group" aria-label="Period" id="hx-seg"><button data-hx="1">Day</button><button data-hx="7">Week</button><button data-hx="30">Month</button><button data-hx="60">60 days</button></div>
       </div>

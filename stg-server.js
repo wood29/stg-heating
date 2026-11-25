@@ -10,7 +10,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { startUpdater } from "./updater.js";
-import { onGrid, coastEvents, lossSamples, summarise, merge, wallDamp, STEP } from "./learn.js";
+import { onGrid, coastEvents, lossSamples, summarise, merge, wallDamp, STEP, forecastBias, correct, warmSummary } from "./learn.js";
 
 const HA_URL = (process.env.HA_URL || "").replace(/\/+$/, "");
 const HA_TOKEN = process.env.HA_TOKEN || "";
@@ -71,7 +71,7 @@ function allowed(domain, service, data) {
       if (["input_datetime.stg_night_start", "input_datetime.stg_night_end"].includes(id)) return /^\d{2}:\d{2}:00$/.test(data.time) && keys === "entity_id,time";
       return ["input_datetime.stg_arrival", "input_datetime.stg_departure"].includes(id) && DT.test(data.datetime) && keys === "datetime,entity_id";
     case "input_boolean.turn_on": case "input_boolean.turn_off":
-      return (["input_boolean.stg_arrival_planned", "input_boolean.stg_night_enabled", "input_boolean.stg_co2_alert", "input_boolean.stg_bench_plan", "input_boolean.stg_mould_protection", "input_boolean.stg_learned_stop"].includes(id) || /^input_boolean\.stg_co2_push_[a-z0-9_]+$/.test(id)) && keys === "entity_id";
+      return (["input_boolean.stg_arrival_planned", "input_boolean.stg_night_enabled", "input_boolean.stg_co2_alert", "input_boolean.stg_bench_plan", "input_boolean.stg_mould_protection", "input_boolean.stg_learned_stop", "input_boolean.stg_watch_alerts"].includes(id) || /^input_boolean\.stg_co2_push_[a-z0-9_]+$/.test(id)) && keys === "entity_id";
     case "input_number.set_value":
       if (id === "input_number.stg_bench_plan_temp") return num(data.value, 5, 40) && keys === "entity_id,value";
       if (id === "input_number.stg_co2_limit") return num(data.value, 800, 3000) && keys === "entity_id,value";
@@ -293,7 +293,7 @@ const call = (domain, service, service_data) => haSend({ type: "call_service", d
 let careReady = false;
 async function ensureCare() {
   await loadLearn();
-  for (const [id, name, icon] of [[PROTECT, "StG mould protection", "mdi:water-alert-outline"], [STOP_LEARNED, "StG learned stop", "mdi:school-outline"]]) {
+  for (const [id, name, icon] of [[PROTECT, "StG mould protection", "mdi:water-alert-outline"], [STOP_LEARNED, "StG learned stop", "mdi:school-outline"], [WATCH, "StG watch alerts", "mdi:bell-alert-outline"]]) {
     if (states[id]) continue;
     try { await haSend({ type: "input_boolean/create", name, icon }); console.log(`Created ${id}`);
       setTimeout(() => call("input_boolean", "turn_on", { entity_id: id }).catch(() => {}), 3000); } catch (e) { console.error(`${id}:`, e.message); }
@@ -301,6 +301,8 @@ async function ensureCare() {
   if (careReady) return; careReady = true;
   setInterval(() => careTick().catch(e => console.error("Mould protection:", e.message)), 60e3);
   setTimeout(() => learnRun().catch(e => console.error("Learning:", e.message)), 90e3);
+  setInterval(() => watchTick().catch(e => console.error("Watch:", e.message)), 60e3);
+  setInterval(() => hourTick().catch(e => console.error("Forecast check:", e.message)), 5 * 60e3); setTimeout(() => hourTick().catch(() => {}), 20e3);
   setInterval(() => { const h = new Date().getHours(); if (h === 4 && Date.now() - (L.ran || 0) > 20 * 3600e3) learnRun().catch(e => console.error("Learning:", e.message)); }, 10 * 60e3);
 }
 
@@ -310,9 +312,9 @@ function walls() {
 }
 const isAway = () => { const m = states["input_select.stg_heating_mode"]?.state; return m === "Away" || (m === "Auto" && states["input_text.stg_heating_auto_state"]?.state === "Away"); };
 const quiet = () => { const d = new Date(), m = d.getHours() * 60 + d.getMinutes(); return m < 7 * 60 + 30 || m >= 22 * 60; };
-async function push(title, message, tag) {
+async function push(title, message, tag, important = false) {
   for (const [dev, flag] of PUSH) if (states[flag]?.state === "on")
-    await call("notify", `mobile_app_${dev}`, { title, message, data: { tag, group: "stg-air", push: { "interruption-level": "passive" } } }).catch(e => console.error(`Push ${dev}:`, e.message));
+    await call("notify", `mobile_app_${dev}`, { title, message, data: { tag, group: important ? "stg-watch" : "stg-air", push: { "interruption-level": important ? "active" : "passive" } } }).catch(e => console.error(`Push ${dev}:`, e.message));
 }
 async function careTick() {
   if (!connected) return;
@@ -392,8 +394,119 @@ async function applyStop() {
 }
 async function learnInfo() {
   await loadLearn();
-  const c = L.care || {};
-  return { ...learnSummary(), updated: L.ran || null, care: { raised: !!c.raised, base: c.base ?? null, to: c.to ?? null, since: c.since ?? null, rooms: c.rooms || [], ended: c.ended ?? null, endedWhy: c.endedWhy ?? null, top: c.top || null } };
+  const c = L.care || {}, bias = forecastBias(L.fcS);
+  return { ...learnSummary(), updated: L.ran || null, forecast: bias, warm: warmInfo(), watch: { on: states[WATCH]?.state !== "off", open: Object.values(L.watch || {}).filter(w => w.sent).map(w => w.text) }, care: { raised: !!c.raised, base: c.base ?? null, to: c.to ?? null, since: c.since ?? null, rooms: c.rooms || [], ended: c.ended ?? null, endedWhy: c.endedWhy ?? null, top: c.top || null } };
+}
+
+
+// ---------------------------------------------------------------- forecast check, warm on time, days, watch (ideas from ClimateAdvisor)
+const WATCH = "input_boolean.stg_watch_alerts", NIGHT_ON = "input_boolean.stg_night_enabled", NIGHT_END = "input_datetime.stg_night_end";
+const ARRIVAL = "input_datetime.stg_arrival", PLANNED = "input_boolean.stg_arrival_planned", STAY = "binary_sensor.stg_stay_active";
+const dayKey = d => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
+const comfortOf = r => fnum(`number.${r}_floor_heating_comfort_temperature`);
+const clim = r => states[`climate.${r}_floor_heating`];
+const hhmm = t => new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Vienna" });
+
+// every 5 minutes: note the forecast for 3–4 hours ahead, the outdoor reading, and today's highs and lows
+async function hourTick() {
+  if (!connected) return;
+  await loadLearn();
+  const now = Date.now(), H = 3600e3, hour = Math.floor(now / H) * H;
+  L.fcPend ||= {}; L.act ||= {}; L.fcS ||= []; L.days ||= {};
+  const out = fnum(OUT_T);
+  if (Number.isFinite(out)) { const a = (L.act[hour] ||= { s: 0, n: 0 }); a.s += out; a.n++; }
+  let wx = null; try { wx = await forecast(); } catch { }
+  for (const f of wx?.hourly || []) { const t = Date.parse(f.t), lead = t - now; if (lead >= 3 * H && lead < 4 * H && !(t in L.fcPend) && Number.isFinite(f.hi)) L.fcPend[t] = f.hi; }
+  for (const k of Object.keys(L.fcPend)) { const t = Number(k), a = L.act[t];
+    if (t + H < now) { if (a && a.n >= 6) L.fcS.push({ t, fc: L.fcPend[k], act: Math.round(a.s / a.n * 10) / 10 }); delete L.fcPend[k]; } }
+  for (const k of Object.keys(L.act)) if (Number(k) < now - 2 * 864e5) delete L.act[k];
+  L.fcS = L.fcS.filter(x => x.t > now - 60 * 864e5);
+  const d = (L.days[dayKey(now)] ||= {});
+  if (Number.isFinite(out)) { d.hi = Math.max(d.hi ?? -99, out); d.lo = Math.min(d.lo ?? 99, out); }
+  if (d.fcHi == null && wx?.daily?.[0] && new Date().getHours() >= 6) { d.fcHi = wx.daily[0].hi; d.fcLo = wx.daily[0].lo; }
+  for (const k of Object.keys(L.days)) if (k < dayKey(now - 40 * 864e5)) delete L.days[k];
+  await saveLearn().catch(() => {});
+}
+
+// deadlines: the arrival and, during a stay with night temperatures, the "warm by" time each morning
+function deadlines(now) {
+  const out = [], arr = Date.parse(states[ARRIVAL]?.state || "");
+  if (states[PLANNED]?.state === "on" && Number.isFinite(arr)) out.push({ key: `arr-${arr}`, t: arr, kind: "arrival" });
+  const ne = states[NIGHT_END]?.state;
+  if (states[STAY]?.state === "on" && states[NIGHT_ON]?.state === "on" && ne) { const [h, m] = ne.split(":").map(Number), t = new Date(now); t.setHours(h, m, 0, 0); out.push({ key: `morn-${+t}`, t: +t, kind: "morning" }); }
+  return out;
+}
+function warmInfo() {
+  const ev = (L?.warm || []).flatMap(w => Object.entries(w.rooms).filter(([, x]) => x.late != null).map(([r, x]) => ({ r, late: x.late })));
+  const rooms = Object.fromEntries(ROOMS.map(r => [r, warmSummary(ev.filter(e => e.r === r))]));
+  return { all: warmSummary(ev), rooms, last: (L?.warm || []).slice(-1)[0] || null };
+}
+
+// every minute: on-time checks, cold minutes for the day table, and the self-watch alerts
+async function watchTick() {
+  if (!connected) return;
+  await loadLearn();
+  const now = Date.now(); L.warm ||= []; L.checked ||= {}; L.watch ||= {}; L.days ||= {};
+  let dirty = false;
+  // warm on time: at the arrival and the morning "warm by", which rooms were already within 0.5 °C of comfort
+  for (const dl of deadlines(now)) {
+    if (L.checked[dl.key] || now < dl.t || now > dl.t + 10 * 60e3) continue;
+    L.checked[dl.key] = now; dirty = true;
+    const rooms = {};
+    for (const r of ROOMS) { const c = clim(r), cur = c?.attributes?.current_temperature, cf = comfortOf(r);
+      if (typeof cur !== "number" || !Number.isFinite(cf) || states[`binary_sensor.${r}_floor_heating_online`]?.state === "off") continue;
+      rooms[r] = { target: cf, temp: cur, late: cur >= cf - .5 ? 0 : null }; }
+    L.warm.push({ t: dl.t, kind: dl.kind, rooms });
+  }
+  for (const w of L.warm.slice(-3)) for (const [r, x] of Object.entries(w.rooms)) if (x.late == null) {
+    const cur = clim(r)?.attributes?.current_temperature, mins = Math.round((now - w.t) / 60e3);
+    if (typeof cur === "number" && cur >= x.target - .5) { x.late = mins; dirty = true; } else if (mins >= 360) { x.late = 360; dirty = true; }
+  }
+  L.warm = L.warm.slice(-200);
+  for (const k of Object.keys(L.checked)) if (L.checked[k] < now - 10 * 864e5) { delete L.checked[k]; dirty = true; }
+  // day table: room-minutes too cold (more than 0.5 °C under target during a stay) and room-minutes heating
+  const d = (L.days[dayKey(now)] ||= {});
+  if (states[STAY]?.state === "on") for (const r of ROOMS) { const a = clim(r)?.attributes || {};
+    if (typeof a.current_temperature === "number" && typeof a.temperature === "number" && a.temperature >= 15 && a.current_temperature < a.temperature - .5) { d.cold = (d.cold || 0) + 1; dirty = true; } }
+  for (const r of ROOMS) if (clim(r)?.attributes?.hvac_action === "heating") { d.heat = (d.heat || 0) + 1; dirty = true; }
+  // self-watch: a problem pushes once when it has lasted long enough, and once more when it's over
+  const on = states[WATCH]?.state !== "off";
+  const check = async (key, bad, after, text, back) => {
+    const w = L.watch[key];
+    if (bad) { if (!w) { L.watch[key] = { since: now, text: text(now) }; dirty = true; }
+      else if (!w.sent && now - w.since >= after) { w.sent = now; w.text = text(w.since); dirty = true; if (on) await push("St. Gilgen · heating", w.text, `stg-watch-${key}`, true); } }
+    else if (w) { if (w.sent && on && back) await push("St. Gilgen · heating", back, `stg-watch-${key}`); delete L.watch[key]; dirty = true; }
+  };
+  for (const r of ROOMS) {
+    const c = clim(r), n = ROOM_NAME[r], off = !c || c.state === "unavailable" || states[`binary_sensor.${r}_floor_heating_online`]?.state === "off";
+    await check(`off-${r}`, off, 30 * 60e3, since => `The ${n} thermostat hasn't reported since ${hhmm(since)}. It keeps its last setting by itself.`, `The ${n} thermostat is reporting again.`);
+    const cur = c?.attributes?.current_temperature;
+    await check(`frost-${r}`, typeof cur === "number" && cur <= 4, 10 * 60e3, () => `The ${n} is down to ${cur} °C. Frost risk: worth checking the heating.`, `The ${n} is back above 4 °C.`);
+    // heating for 3 hours without the room getting warmer
+    const hk = `h-${r}`, heat = c?.attributes?.hvac_action === "heating" && typeof cur === "number";
+    if (heat) { const s = (L.heatRun ||= {})[hk] ||= { since: now, t0: cur }; s.max = Math.max(s.max ?? cur, cur); }
+    else if (L.heatRun?.[hk]) { delete L.heatRun[hk]; dirty = true; }
+    const hs = L.heatRun?.[hk];
+    await check(`stuck-${r}`, !!hs && now - hs.since >= 3 * 3600e3 && (hs.max - hs.t0) < .3, 0, () => `The ${n} has been heating for 3 hours but isn't getting warmer (${cur} °C). Its floor heating may need a look.`, `The ${n} is warming up again.`);
+  }
+  for (const [id, n] of [["sensor.indoor_stg_temperature", "dining room"], ["sensor.indoor_stg_bedroom_temperature", "bathroom"], ["sensor.indoor_stg_bedroom_temperature_2", "bedroom"], [OUT_T, "outdoor"]]) {
+    const bad = !states[id] || ["unavailable", "unknown"].includes(states[id].state);
+    await check(`sensor-${id}`, bad, 2 * 3600e3, () => `The ${n} sensor has stopped reporting. The damp and air checks for it are paused.`, `The ${n} sensor is reporting again.`);
+  }
+  if (dirty) await saveLearn().catch(() => {});
+}
+
+// yesterday, today and tomorrow for the Insights table, and the corrected hourly outlook
+async function daysInfo() {
+  await loadLearn();
+  const now = Date.now(), bias = forecastBias(L.fcS); let wx = null; try { wx = await forecast(); } catch { }
+  const row = k => { const d = L.days?.[k] || {}; return { date: k, hi: d.hi ?? null, lo: d.lo ?? null, fcHi: d.fcHi ?? null, fcLo: d.fcLo ?? null, coldMin: d.cold ?? 0, heatMin: d.heat ?? 0 }; };
+  const today = row(dayKey(now)); today.fcHi ??= wx?.daily?.[0]?.hi ?? null; today.fcLo ??= wx?.daily?.[0]?.lo ?? null;
+  const tm = wx?.daily?.[1];
+  const hrs = (wx?.hourly || []).map(f => ({ t: Date.parse(f.t), fc: f.hi })).filter(x => Number.isFinite(x.fc));
+  const r1 = v => Math.round(v * 10) / 10;
+  return { yesterday: row(dayKey(now - 864e5)), today, tomorrow: { date: dayKey(now + 864e5), fcHi: tm?.hi ?? null, fcLo: tm?.lo ?? null },
+    outlook: hrs.map(x => [x.t, x.fc, r1(correct(x.fc, x.t, bias))]), bias };
 }
 
 // ---------------------------------------------------------------- stay log
@@ -558,6 +671,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/stays") return json(res, 200, { stays: await stayList() });
     if (url.pathname === "/api/weather") return json(res, 200, await forecast());
     if (url.pathname === "/api/learn") return json(res, 200, await learnInfo());
+    if (url.pathname === "/api/days") { try { return json(res, 200, await daysInfo()); } catch (e) { return json(res, 502, { error: e.message }); } }
     if (url.pathname === "/api/recent") { try { return json(res, 200, await recent()); } catch (e) { return json(res, 502, { error: e.message }); } }
     if (url.pathname === "/api/history") { try { return json(res, 200, await history(url.searchParams)); } catch (e) { return json(res, e.message === "Bad period" ? 400 : 502, { error: e.message }); } }
     // Profile pictures of the people (Mike, Irene, Oli), fetched with the token so the browser never needs it

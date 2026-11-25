@@ -109,21 +109,50 @@ const dampLevel = v => v == null ? "" : v >= MOULD_RISK ? "risk" : v >= MOULD_WA
 // Little trend line of the last hours for a room: measured (solid, filled) and target (dashed steps).
 // pts / tgt: [[epoch ms, value], ...]
 function spark(pts, tgt, o = {}) {
-  const W = o.w || 72, H = o.h || 26, now = Date.now(), from = now - (o.hours || 6) * 3600e3;
-  const P = (pts || []).filter(p => p[0] >= from - 3600e3 && Number.isFinite(p[1])), T = (tgt || []).filter(p => Number.isFinite(p[1]));
+  // o.ahead: [[t, v]] forecast after now (dotted), o.aheadTgt: [[t, target]] planned target steps after now
+  const W = o.w || 72, H = o.h || 26, now = Date.now(), from = now - (o.hours || 6) * 3600e3, A = (o.ahead || []).filter(p => p[0] > now && Number.isFinite(p[1]));
+  const to = A.length ? now + (o.aheadHours || 6) * 3600e3 : now;
+  const P = (pts || []).filter(p => p[0] >= from - 3600e3 && Number.isFinite(p[1])), T = (tgt || []).filter(p => Number.isFinite(p[1])).concat((o.aheadTgt || []).filter(p => p[0] > now && p[0] <= to));
   if (P.length < 2) return "";
-  const tIn = T.filter(p => p[0] >= from); const lastBefore = T.filter(p => p[0] < from).at(-1);
+  const tIn = T.filter(p => p[0] >= from).sort((a, b) => a[0] - b[0]); const lastBefore = T.filter(p => p[0] < from).at(-1);
   const steps = (lastBefore ? [[from, lastBefore[1]]] : []).concat(tIn);
-  const vs = P.map(p => p[1]).concat(steps.map(p => p[1]));
+  const Ain = A.filter(p => p[0] <= to);
+  const vs = P.map(p => p[1]).concat(steps.map(p => p[1]), Ain.map(p => p[1]));
   let lo = Math.min(...vs), hi = Math.max(...vs); if (hi - lo < 1) { const m = (hi + lo) / 2; lo = m - .5; hi = m + .5; }
   const pad = (hi - lo) * .12; lo -= pad; hi += pad;
-  const x = t => Math.max(0, Math.min(W, (t - from) / (now - from) * W)), y = v => (H - 1) - (v - lo) / (hi - lo) * (H - 2);
+  const x = t => Math.max(0, Math.min(W, (t - from) / (to - from) * W)), y = v => (H - 1) - (v - lo) / (hi - lo) * (H - 2);
   const line = P.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join("");
-  let st = ""; steps.forEach((p, i) => { const nx = i + 1 < steps.length ? steps[i + 1][0] : now; st += `M${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}H${x(nx).toFixed(1)}`; });
+  let st = ""; steps.forEach((p, i) => { const nx = i + 1 < steps.length ? steps[i + 1][0] : to; st += `M${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}H${x(nx).toFixed(1)}`; });
   const last = P.at(-1);
+  const fut = Ain.length ? `M${x(last[0]).toFixed(1)} ${y(last[1]).toFixed(1)}` + Ain.map(p => `L${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join("") : "";
   return `<svg class="spark${o.hot ? " hot" : ""}" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" preserveAspectRatio="none" aria-hidden="true">` +
-    `<path class="sa" d="${line}L${x(last[0]).toFixed(1)} ${H}L${x(P[0][0]).toFixed(1)} ${H}Z"/>${st ? `<path class="sg" d="${st}"/>` : ""}<path class="sl" d="${line}"/></svg>`;
+    `<path class="sa" d="${line}L${x(last[0]).toFixed(1)} ${H}L${x(P[0][0]).toFixed(1)} ${H}Z"/>${st ? `<path class="sg" d="${st}"/>` : ""}<path class="sl" d="${line}"/>` +
+    (fut ? `<path class="sf" d="${fut}"/><path class="sn" d="M${x(now).toFixed(1)} 0V${H}"/>` : "") + `</svg>`;
 }
+
+// Room temperature forecast (idea from ClimateAdvisor), from what each room has learned:
+//   heating: rises at its learned warm-up speed until the target; not heating: loses heat toward outside at its learned
+//   heat-loss rate, and right after heating stops the floor's afterglow keeps it within 0.5 °C for the learned hours.
+// steps: [[t, target]] (the first is the target now); out(t) -> outside °C (corrected forecast). Returns [[t, °C]] every 15 min
+// and `reach`: when each upward step is (about) reached.
+function forecastRoom({ T0, steps, warm = .5, loss = 0, coast = 0, out = () => NaN, hours = 12, t0 = Math.floor(Date.now() / 900e3) * 900e3, heating = false }) {
+  const dt = .25, k = Math.max(0, loss) / 10, S = steps.slice().sort((a, b) => a[0] - b[0]), pts = [], reach = [];
+  let T = T0, lastHeat = heating ? t0 : -Infinity, si = 0, tgt = S[0]?.[1] ?? T0, want = null;
+  for (let i = 1; i <= hours * 4; i++) {
+    const t = t0 + i * 900e3;
+    while (si + 1 < S.length && S[si + 1][0] <= t) { si++; const nt = S[si][1]; if (nt > tgt + .3) want = { from: S[si][0], target: nt }; tgt = nt; }
+    if (si === 0 && S[0]) tgt = S[0][1];
+    const o = out(t);
+    if (T < tgt - .1) { T = Math.min(tgt + .1, T + warm * dt); lastHeat = t; }
+    else if (Number.isFinite(o) && T > o) { let r = k * (T - o); if (coast > 0 && t - lastHeat < coast * 3600e3) r = Math.min(r, .5 / coast); T -= r * dt; }
+    if (want && T >= want.target - .2) { reach.push({ ...want, at: t }); want = null; }
+    pts.push([t, Math.round(T * 100) / 100]);
+  }
+  if (want) reach.push({ ...want, at: null });
+  return { pts, reach };
+}
+// a reading for the corrected outdoor forecast: [[t, raw, corrected], ...] -> out(t)
+const outFn = rows => t => { if (!rows?.length) return NaN; let best = rows[0]; for (const r of rows) if (Math.abs(r[0] - t) < Math.abs(best[0] - t)) best = r; return Math.abs(best[0] - t) < 2 * 3600e3 ? best[2] ?? best[1] : NaN; };
 
 // Daily rhythm: when the heating ran, hour by hour over the last two weeks (darker = more energy).
 // hours: [[epoch ms of the hour, kWh], ...]

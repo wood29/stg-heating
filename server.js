@@ -4,6 +4,7 @@
 //                                         (WIEN_INSIDE=1 also runs Wien Wärme inside it, at /wien/;
 //                                         normally Wien Wärme is its own app on port 8796)
 // One image, one command (node server.js).
+process.env.TZ ||= "Europe/Vienna";   // both homes are in Austria: plan times, quiet hours and day boundaries in local time
 if (process.env.BRIDGE_URL || process.env.BRIDGE_PASSWORD || process.env.HOME_ID === "wien") await import("./bridge.js");
 else {
   await import("./stg-server.js");
